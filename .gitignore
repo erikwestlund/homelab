@@ -1,0 +1,36 @@
+# Environment files
+.env
+.env.backup
+docker/.env
+docker/.env.backup
+
+# Docker compose
+docker/docker-compose.yml
+
+# Mosquitto
+docker/mosquitto/data/
+docker/mosquitto/log/
+docker/mosquitto/config/passwd
+docker/mosquitto/config/mosquitto.conf
+
+# Zigbee2MQTT  
+docker/zigbee2mqtt/data/state.json
+docker/zigbee2mqtt/data/coordinator_backup.json
+docker/zigbee2mqtt/data/database.db
+docker/zigbee2mqtt/data/log/
+docker/zigbee2mqtt/data/configuration.yaml
+docker/zigbee2mqtt/data/devices.yaml
+docker/zigbee2mqtt/data/groups.yaml
+docker/zigbee2mqtt/data/secrets.yaml
+docker/zigbee2mqtt/data/.backup/
+
+# General
+*.log
+*.db
+.DS_Store
+
+# Development tools
+.claude/
+
+# Backups
+z2mbackup/

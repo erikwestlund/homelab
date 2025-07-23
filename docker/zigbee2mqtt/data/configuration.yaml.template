@@ -1,0 +1,39 @@
+# Zigbee2MQTT Configuration Template
+# This file is used as a template by the setup script
+# DO NOT use this directly - run setup.sh instead
+# Documentation: https://www.zigbee2mqtt.io/guide/configuration/
+
+# MQTT settings
+mqtt:
+  base_topic: zigbee2mqtt
+  server: mqtt://mosquitto:1883
+  user: MQTT_USER_PLACEHOLDER
+  password: MQTT_PASS_PLACEHOLDER
+
+# Serial port settings
+serial:
+  port: ${ZIGBEE_SERIAL_PORT}
+
+# Web frontend
+frontend:
+  port: 8080
+
+# Zigbee network settings
+advanced:
+  log_level: info
+  log_output:
+    - console
+  network_key: GENERATE
+  pan_id: GENERATE
+  ext_pan_id: GENERATE
+  channel: 11
+
+# Device specific configuration
+device_options:
+  retain: true
+
+# Permit devices to join
+permit_join: false
+
+# Home Assistant integration
+homeassistant: true

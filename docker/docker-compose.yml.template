@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    networks:
+      - homelab
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:latest
+    container_name: zigbee2mqtt
+    restart: unless-stopped
+    depends_on:
+      - mosquitto
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=${TZ}
+      - ZIGBEE_SERIAL_PORT=${ZIGBEE_SERIAL_PORT}
+    devices:
+      # This will be commented out for network adapters
+      - ${ZIGBEE_SERIAL_PORT}:${ZIGBEE_SERIAL_PORT}
+    volumes:
+      - ./zigbee2mqtt/data:/app/data
+      - /run/udev:/run/udev:ro
+    networks:
+      - homelab
+
+networks:
+  homelab:
+    driver: bridge
