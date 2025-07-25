@@ -111,7 +111,7 @@ mkdir -p "$INSTALL_DIR/mosquitto/log"
 mkdir -p "$INSTALL_DIR/zigbee2mqtt/data"
 
 # Generate passwords
-MQTT_USER="homelab"
+MQTT_USER="mqtt"
 MQTT_PASS=$(generate_password)
 
 echo -e "${GREEN}Generated MQTT credentials:${NC}"
