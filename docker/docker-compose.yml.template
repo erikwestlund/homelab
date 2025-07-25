@@ -26,6 +26,8 @@ services:
     environment:
       - TZ=${TZ}
       - ZIGBEE_SERIAL_PORT=${ZIGBEE_SERIAL_PORT}
+      - ZIGBEE2MQTT_CONFIG_MQTT_USER=${MQTT_USER}
+      - ZIGBEE2MQTT_CONFIG_MQTT_PASSWORD=${MQTT_PASS}
     devices:
       # This will be commented out for network adapters
       - ${ZIGBEE_SERIAL_PORT}:${ZIGBEE_SERIAL_PORT}
