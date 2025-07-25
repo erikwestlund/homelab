@@ -178,8 +178,7 @@ cat > "$INSTALL_DIR/zigbee2mqtt/data/configuration.yaml" << EOF
 mqtt:
   base_topic: zigbee2mqtt
   server: mqtt://mosquitto:1883
-  user: $MQTT_USER
-  password: $MQTT_PASS
+  # user and password come from environment variables
 
 # Serial port settings
 serial:
