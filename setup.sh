@@ -75,8 +75,20 @@ fi
 if [ ! -d "$INSTALL_DIR" ]; then
     echo "Creating installation directory..."
     if [[ "$INSTALL_DIR" == /opt/* ]]; then
-        sudo mkdir -p "$INSTALL_DIR"
-        sudo chown $USER:$USER "$INSTALL_DIR"
+        if [ "$EUID" -eq 0 ]; then
+            # Running as root, no sudo needed
+            mkdir -p "$INSTALL_DIR"
+        else
+            # Running as regular user, need sudo
+            if command -v sudo &> /dev/null; then
+                sudo mkdir -p "$INSTALL_DIR"
+                sudo chown $USER:$USER "$INSTALL_DIR"
+            else
+                echo -e "${RED}Error: Need root privileges to create $INSTALL_DIR${NC}"
+                echo "Please run as root or install sudo"
+                exit 1
+            fi
+        fi
     else
         mkdir -p "$INSTALL_DIR"
     fi
@@ -225,7 +237,17 @@ docker run --rm -v "$INSTALL_DIR/mosquitto/config:/mosquitto/config" eclipse-mos
 
 # Set proper permissions
 echo "Setting permissions..."
-sudo chown -R 1883:1883 "$INSTALL_DIR/mosquitto/" 2>/dev/null || true
+if [ "$EUID" -eq 0 ]; then
+    # Running as root, no sudo needed
+    chown -R 1883:1883 "$INSTALL_DIR/mosquitto/" 2>/dev/null || true
+else
+    # Running as regular user, try sudo if available
+    if command -v sudo &> /dev/null; then
+        sudo chown -R 1883:1883 "$INSTALL_DIR/mosquitto/" 2>/dev/null || true
+    else
+        echo -e "${YELLOW}Warning: Cannot set mosquitto ownership without root privileges${NC}"
+    fi
+fi
 chmod -R 755 "$INSTALL_DIR/mosquitto/config"
 chmod 600 "$INSTALL_DIR/mosquitto/config/passwd" 2>/dev/null || true
 
