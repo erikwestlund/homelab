@@ -133,7 +133,7 @@ TZ=America/New_York
 # Zigbee adapter configuration
 # For USB adapters use: /dev/ttyUSB0 or /dev/ttyACM0
 # For network adapters use: tcp://ip:port
-ZIGBEE_SERIAL_PORT=/dev/ttyUSB0
+ZIGBEE_SERIAL_PORT=tcp://zigbee.lan:6638
 
 # MQTT credentials (auto-generated, do not commit!)
 MQTT_USER=$MQTT_USER
