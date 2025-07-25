@@ -13,7 +13,7 @@ log_message() {
 
 # Check if Zigbee2MQTT is responding
 check_zigbee2mqtt() {
-    if ! curl -sf http://localhost:8080/api > /dev/null; then
+    if ! curl -sf http://localhost:8080/ > /dev/null; then
         log_message "ERROR: Zigbee2MQTT not responding"
         return 1
     fi
@@ -32,6 +32,17 @@ check_mqtt() {
 # Main monitoring logic
 cd "$INSTALL_DIR"
 
+# First check if services are running
+if ! docker ps | grep -q zigbee2mqtt; then
+    log_message "WARNING: Zigbee2MQTT container not running"
+    exit 1
+fi
+
+if ! docker ps | grep -q mosquitto; then
+    log_message "WARNING: Mosquitto container not running"
+    exit 1
+fi
+
 # Check Zigbee2MQTT
 if ! check_zigbee2mqtt; then
     log_message "Restarting Zigbee2MQTT..."
@@ -42,6 +53,8 @@ if ! check_zigbee2mqtt; then
     else
         log_message "CRITICAL: Zigbee2MQTT restart failed"
     fi
+else
+    log_message "Zigbee2MQTT is healthy"
 fi
 
 # Check MQTT
@@ -56,4 +69,6 @@ if ! check_mqtt; then
     else
         log_message "CRITICAL: Service restart failed"
     fi
+else
+    log_message "Mosquitto is healthy"
 fi
