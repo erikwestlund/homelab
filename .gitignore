@@ -34,3 +34,11 @@ docker/zigbee2mqtt/data/.backup/
 
 # Backups
 z2mbackup/
+
+# Temporary files for local copying
+configuration.yaml
+complete-configuration.yaml
+docker-compose-with-healthchecks.yml
+docker-compose-reliable.yml
+docker-compose-limits.yml
+monitor-zigbee.sh
