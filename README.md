@@ -18,18 +18,23 @@ This repository contains Docker Compose configurations for a homelab setup inclu
 
 2. Run the setup script to generate configuration files:
    ```bash
+   # Default installation to /opt/docker
    ./setup.sh
+   
+   # Or specify a custom directory
+   ./setup.sh --install-dir ~/homelab-docker
    ```
 
 3. Edit the generated `.env` file with your specific settings:
    ```bash
-   cd docker
+   # Navigate to your installation directory
+   cd /opt/docker  # or your custom directory
    nano .env
    ```
 
 4. Start the services:
    ```bash
-   cd docker
+   # From your installation directory
    docker-compose up -d
    ```
 

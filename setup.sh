@@ -10,7 +10,34 @@ echo
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
+
+# Default installation directory
+DEFAULT_INSTALL_DIR="/opt/docker"
+INSTALL_DIR=""
+
+# Parse command line arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        --install-dir)
+            INSTALL_DIR="$2"
+            shift 2
+            ;;
+        --help)
+            echo "Usage: $0 [options]"
+            echo "Options:"
+            echo "  --install-dir <path>  Specify custom installation directory (default: $DEFAULT_INSTALL_DIR)"
+            echo "  --help                Show this help message"
+            exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $1${NC}"
+            echo "Use --help for usage information"
+            exit 1
+            ;;
+    esac
+done
 
 # Check if running from repo root
 if [ ! -d "docker" ]; then
@@ -18,17 +45,58 @@ if [ ! -d "docker" ]; then
     exit 1
 fi
 
+# Determine installation directory
+if [ -z "$INSTALL_DIR" ]; then
+    # Check if /opt/docker exists
+    if [ -d "$DEFAULT_INSTALL_DIR" ]; then
+        # Check if it's empty (only . and .. entries)
+        if [ "$(ls -A $DEFAULT_INSTALL_DIR 2>/dev/null | wc -l)" -eq 0 ]; then
+            echo -e "${GREEN}Found empty $DEFAULT_INSTALL_DIR directory, will use it for installation${NC}"
+            INSTALL_DIR="$DEFAULT_INSTALL_DIR"
+        else
+            echo -e "${RED}Error: $DEFAULT_INSTALL_DIR exists and is not empty${NC}"
+            echo
+            echo "Options:"
+            echo "1. Remove the existing directory manually: sudo rm -rf $DEFAULT_INSTALL_DIR"
+            echo "2. Use a different installation directory: $0 --install-dir /path/to/directory"
+            echo
+            echo "Example: $0 --install-dir ~/homelab-docker"
+            exit 1
+        fi
+    else
+        echo -e "${BLUE}Will create and use $DEFAULT_INSTALL_DIR for installation${NC}"
+        INSTALL_DIR="$DEFAULT_INSTALL_DIR"
+    fi
+else
+    echo -e "${BLUE}Using custom installation directory: $INSTALL_DIR${NC}"
+fi
+
+# Create installation directory if it doesn't exist
+if [ ! -d "$INSTALL_DIR" ]; then
+    echo "Creating installation directory..."
+    if [[ "$INSTALL_DIR" == /opt/* ]]; then
+        sudo mkdir -p "$INSTALL_DIR"
+        sudo chown $USER:$USER "$INSTALL_DIR"
+    else
+        mkdir -p "$INSTALL_DIR"
+    fi
+fi
+
 # Function to generate random password
 generate_password() {
     openssl rand -base64 32 | tr -d "=+/" | cut -c1-25
 }
 
+# Copy docker directory structure to installation directory
+echo "Copying Docker configuration to $INSTALL_DIR..."
+cp -r docker/* "$INSTALL_DIR/"
+
 # Create necessary directories
 echo "Creating directories..."
-mkdir -p docker/mosquitto/config
-mkdir -p docker/mosquitto/data
-mkdir -p docker/mosquitto/log
-mkdir -p docker/zigbee2mqtt/data
+mkdir -p "$INSTALL_DIR/mosquitto/config"
+mkdir -p "$INSTALL_DIR/mosquitto/data"
+mkdir -p "$INSTALL_DIR/mosquitto/log"
+mkdir -p "$INSTALL_DIR/zigbee2mqtt/data"
 
 # Generate passwords
 MQTT_USER="homelab"
@@ -40,13 +108,13 @@ echo "Password: $MQTT_PASS"
 echo
 
 # Create .env file from template
-if [ -f "docker/.env" ]; then
+if [ -f "$INSTALL_DIR/.env" ]; then
     echo -e "${YELLOW}Warning: .env file already exists. Backing up to .env.backup${NC}"
-    cp docker/.env docker/.env.backup
+    cp "$INSTALL_DIR/.env" "$INSTALL_DIR/.env.backup"
 fi
 
 echo "Creating .env file..."
-cat > docker/.env << EOF
+cat > "$INSTALL_DIR/.env" << EOF
 # Timezone
 TZ=America/New_York
 
@@ -62,7 +130,7 @@ EOF
 
 # Create Mosquitto configuration with authentication
 echo "Creating Mosquitto configuration..."
-cat > docker/mosquitto/config/mosquitto.conf << EOF
+cat > "$INSTALL_DIR/mosquitto/config/mosquitto.conf" << EOF
 # Mosquitto Configuration File
 
 # Listener configuration
@@ -90,7 +158,7 @@ EOF
 
 # Create Zigbee2MQTT configuration
 echo "Creating Zigbee2MQTT configuration..."
-cat > docker/zigbee2mqtt/data/configuration.yaml << EOF
+cat > "$INSTALL_DIR/zigbee2mqtt/data/configuration.yaml" << EOF
 # Zigbee2MQTT Configuration
 # Documentation: https://www.zigbee2mqtt.io/guide/configuration/
 
@@ -131,15 +199,19 @@ homeassistant: true
 EOF
 
 # Check if docker-compose.yml already exists
-if [ -f "docker/docker-compose.yml" ]; then
+if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
     echo -e "${YELLOW}Info: docker-compose.yml already exists, keeping current version${NC}"
 else
     echo "Creating docker-compose.yml from template..."
-    cp docker/docker-compose.yml.template docker/docker-compose.yml
+    if [ -f "$INSTALL_DIR/docker-compose.yml.template" ]; then
+        cp "$INSTALL_DIR/docker-compose.yml.template" "$INSTALL_DIR/docker-compose.yml"
+    else
+        echo -e "${RED}Warning: docker-compose.yml.template not found${NC}"
+    fi
 fi
 
 # Read the serial port from .env and check if using network adapter
-SERIAL_PORT=$(grep "^ZIGBEE_SERIAL_PORT=" docker/.env | cut -d'=' -f2)
+SERIAL_PORT=$(grep "^ZIGBEE_SERIAL_PORT=" "$INSTALL_DIR/.env" | cut -d'=' -f2)
 if [[ "$SERIAL_PORT" == tcp://* ]]; then
     echo
     echo -e "${YELLOW}Note: You're using a network Zigbee adapter.${NC}"
@@ -149,24 +221,27 @@ fi
 
 # Generate Mosquitto password file
 echo "Generating Mosquitto password file..."
-docker run --rm -v "$(pwd)/docker/mosquitto/config:/mosquitto/config" eclipse-mosquitto:latest mosquitto_passwd -b -c /mosquitto/config/passwd $MQTT_USER $MQTT_PASS
+docker run --rm -v "$INSTALL_DIR/mosquitto/config:/mosquitto/config" eclipse-mosquitto:latest mosquitto_passwd -b -c /mosquitto/config/passwd $MQTT_USER $MQTT_PASS
 
 # Set proper permissions
 echo "Setting permissions..."
-sudo chown -R 1883:1883 docker/mosquitto/ 2>/dev/null || true
-chmod -R 755 docker/mosquitto/config
-chmod 600 docker/mosquitto/config/passwd
+sudo chown -R 1883:1883 "$INSTALL_DIR/mosquitto/" 2>/dev/null || true
+chmod -R 755 "$INSTALL_DIR/mosquitto/config"
+chmod 600 "$INSTALL_DIR/mosquitto/config/passwd" 2>/dev/null || true
 
 echo
 echo -e "${GREEN}Setup complete!${NC}"
+echo -e "${GREEN}Installation directory: $INSTALL_DIR${NC}"
 echo
 echo "Next steps:"
-echo "1. Review and edit docker/.env file with your specific settings"
-echo "2. Ensure your Zigbee adapter is connected"
-echo "3. Run: cd docker && docker-compose up -d"
+echo "1. Review and edit the .env file with your specific settings:"
+echo "   cd $INSTALL_DIR && nano .env"
+echo "2. Ensure your Zigbee adapter is accessible (network or USB)"
+echo "3. Start the services:"
+echo "   cd $INSTALL_DIR && docker-compose up -d"
 echo
 echo -e "${YELLOW}Important: Keep your .env file and passwords secure!${NC}"
-echo "The generated MQTT password has been saved to docker/.env"
+echo "The generated MQTT password has been saved to $INSTALL_DIR/.env"
 echo
 echo "Web interfaces will be available at:"
 echo "- Zigbee2MQTT: http://localhost:8080"
