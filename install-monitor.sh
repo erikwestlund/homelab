@@ -53,12 +53,14 @@ fi
 
 # Test the script
 echo "Testing monitoring script..."
-cd "$DOCKER_DIR"
-if ./monitor-zigbee.sh; then
-    echo -e "${GREEN}✓ Monitoring script test successful${NC}"
-else
-    echo -e "${YELLOW}Warning: Monitoring script test had issues${NC}"
-fi
+echo "Skipping test run to avoid restarting services during installation"
+echo -e "${GREEN}✓ Monitoring script copied successfully${NC}"
+
+# Show what would happen
+echo
+echo "The monitoring script will check services every 5 minutes and:"
+echo "  - Log status to /var/log/zigbee-monitor.log"
+echo "  - Restart services only if they're not responding"
 
 # Check if cron is installed
 if ! command -v crontab &> /dev/null; then
