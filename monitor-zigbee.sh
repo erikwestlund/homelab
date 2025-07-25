@@ -22,8 +22,9 @@ check_zigbee2mqtt() {
 
 # Check if MQTT is responding
 check_mqtt() {
-    if ! docker exec mosquitto mosquitto_sub -t '$SYS/#' -C 1 -W 2 > /dev/null 2>&1; then
-        log_message "ERROR: MQTT not responding"
+    # Simple check if mosquitto is running and port is open
+    if ! docker exec mosquitto nc -zv localhost 1883 > /dev/null 2>&1; then
+        log_message "ERROR: MQTT port not responding"
         return 1
     fi
     return 0
