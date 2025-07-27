@@ -1,42 +1,60 @@
-# Homelab Docker Stack
+# Homelab Infrastructure
 
-This repository contains Docker Compose configurations for a homelab setup including Mosquitto (MQTT broker) and Zigbee2MQTT.
+This repository contains infrastructure-as-code for managing two Proxmox servers:
+- **Nexus**: Critical infrastructure (Home Assistant, Pi-hole, Tailscale, Zigbee2MQTT)
+- **Hatchery**: Resource-intensive services (Plex, Windows VMs)
 
-## Prerequisites
+## Getting Started on Fresh Debian 12 Servers
 
-- Docker and Docker Compose installed
-- Zigbee coordinator (USB stick or network-based)
-- Basic understanding of MQTT and Zigbee protocols
+### Option 1: Manual Bootstrap (for servers without git)
+If your Debian 12 server doesn't have git installed, copy the bootstrap script manually:
 
-## Quick Start
+```bash
+# Copy the contents of scripts/debian12/bootstrap.sh and paste into a file on your server
+nano bootstrap.sh
+chmod +x bootstrap.sh
+./bootstrap.sh
+```
 
-1. Clone this repository:
-   ```bash
-   git clone <repository-url>
-   cd homelab
-   ```
+### Option 2: Direct curl (if you have curl)
+```bash
+curl -fsSL https://raw.githubusercontent.com/YOUR_USERNAME/homelab/main/scripts/debian12/bootstrap.sh | bash
+```
 
-2. Run the setup script to generate configuration files:
-   ```bash
-   # Default installation to /opt/docker
-   ./setup.sh
-   
-   # Or specify a custom directory
-   ./setup.sh --install-dir ~/homelab-docker
-   ```
+### Option 3: Standard git clone (if git is installed)
+```bash
+git clone https://github.com/YOUR_USERNAME/homelab.git
+cd homelab
+```
 
-3. Edit the generated `.env` file with your specific settings:
-   ```bash
-   # Navigate to your installation directory
-   cd /opt/docker  # or your custom directory
-   nano .env
-   ```
+## Repository Structure
 
-4. Start the services:
-   ```bash
-   # From your installation directory
-   docker-compose up -d
-   ```
+```
+homelab/
+├── nexus/              # Critical infrastructure services
+│   ├── zigbee-mqtt/    # Mosquitto + Zigbee2MQTT setup
+│   ├── home-assistant/ # Home Assistant configuration
+│   ├── pihole/         # Pi-hole DNS configuration
+│   └── tailscale/      # Tailscale exit node setup
+├── hatchery/           # Resource-intensive services
+│   ├── plex/           # Plex media server
+│   └── windows-vms/    # Windows VM configurations
+├── deployments/        # Production-ready configurations
+├── scripts/            # Utility scripts
+│   └── debian12/       # Debian 12 specific scripts
+└── backups/            # Backup storage (gitignored)
+```
+
+## Zigbee-MQTT Setup Example
+
+For detailed setup of specific services, see their respective directories. For example:
+
+```bash
+# Setup Zigbee-MQTT on Nexus
+cd nexus/zigbee-mqtt
+./setup.sh                          # Install to default /opt/docker
+./setup.sh --install-dir ~/homelab  # Install to custom directory
+```
 
 ## Services
 
