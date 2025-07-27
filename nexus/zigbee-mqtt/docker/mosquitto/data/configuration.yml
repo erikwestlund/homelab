@@ -1,0 +1,36 @@
+# Home Assistant integration
+homeassistant: true
+
+# MQTT settings
+mqtt:
+  base_topic: zigbee2mqtt
+  server: 'mqtt://mosquitto:1883'
+  user: '!secret mqtt_user'
+  password: '!secret mqtt_password'
+
+# Serial settings for SLZB-06P7
+serial:
+  port: '!secret serial_port'
+  adapter: ezsp
+
+# Frontend
+frontend:
+  port: 8080
+  host: 0.0.0.0
+
+# Advanced settings
+advanced:
+  log_level: info
+  log_output:
+    - console
+    - file
+  network_key: '!secret network_key'
+  pan_id: GENERATE
+  channel: 11
+
+# Disable joining by default
+permit_join: false
+
+# Device options
+device_options:
+  retain: true

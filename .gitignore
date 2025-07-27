@@ -34,6 +34,13 @@ docker/zigbee2mqtt/data/.backup/
 
 # Backups
 z2mbackup/
+# Ignore contents of backup directories but keep the directories
+backups/nexus/*
+!backups/nexus/.gitkeep
+backups/hatchery/*
+!backups/hatchery/.gitkeep
+backups/legacy/*
+!backups/legacy/.gitkeep
 
 # Temporary files for local copying
 configuration.yaml
