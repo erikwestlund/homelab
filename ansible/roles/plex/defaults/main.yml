@@ -1,0 +1,33 @@
+---
+# Plex container settings
+plex_container_name: plex
+plex_image: "lscr.io/linuxserver/plex:latest"
+plex_timezone: "America/New_York"
+
+# User/Group IDs
+plex_puid: 1000
+plex_pgid: 1000
+
+# Directories
+plex_config_dir: /opt/docker/plex/config
+plex_media_dir: /media
+plex_movies_dir: "{{ plex_media_dir }}/movies"
+plex_tv_dir: "{{ plex_media_dir }}/tv"
+plex_music_dir: "{{ plex_media_dir }}/music"
+plex_photos_dir: "{{ plex_media_dir }}/photos"
+
+# Network settings
+plex_port: 32400
+plex_network_mode: host
+
+# Hardware transcoding (for Intel Quick Sync)
+plex_enable_hw_transcoding: true
+plex_devices:
+  - /dev/dri:/dev/dri
+
+# Plex claim token (optional - get from https://www.plex.tv/claim)
+plex_claim_token: "{{ plex_claim_token | default('') }}"
+
+# Resource limits
+plex_memory_limit: "4g"
+plex_cpu_shares: 1024

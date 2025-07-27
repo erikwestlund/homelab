@@ -1,0 +1,7 @@
+---
+# Playbook for Hatchery server only
+- name: Configure Hatchery server
+  hosts: hatchery
+  roles:
+    - common
+    - plex

@@ -1,0 +1,9 @@
+---
+# Playbook for Nexus server only
+- name: Configure Nexus server
+  hosts: nexus
+  roles:
+    - common
+    - pihole
+    - home-assistant
+    - zigbee-mqtt

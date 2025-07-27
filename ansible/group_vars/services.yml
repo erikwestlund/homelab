@@ -1,0 +1,35 @@
+---
+# Service-specific variables
+# These can be overridden per host or deployment
+
+# Home Assistant
+home_assistant_port: 8123
+home_assistant_config_dir: /opt/docker/home-assistant/config
+
+# Pi-hole
+pihole_web_port: 80
+pihole_dns_port: 53
+pihole_config_dir: /opt/docker/pihole
+
+# Zigbee2MQTT
+zigbee_serial_port: /dev/ttyUSB0  # Override in host_vars if different
+mqtt_port: 1883
+mqtt_websocket_port: 9001
+zigbee2mqtt_port: 8080
+zigbee2mqtt_config_dir: /opt/docker/zigbee2mqtt
+
+# Plex
+plex_port: 32400
+plex_enable_hw_transcoding: true
+plex_config_dir: /opt/docker/plex/config
+plex_claim_token: "{{ plex_claim_token | default('') }}"
+
+# Tailscale
+tailscale_auth_key: "{{ tailscale_auth_key | default('') }}"
+
+# Common media directories
+media_base_dir: /media
+media_movies_dir: "{{ media_base_dir }}/movies"
+media_tv_dir: "{{ media_base_dir }}/tv"
+media_music_dir: "{{ media_base_dir }}/music"
+media_photos_dir: "{{ media_base_dir }}/photos"

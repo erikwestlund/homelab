@@ -1,0 +1,8 @@
+---
+# Nexus server specific overrides
+# Example: If this server has the Zigbee stick
+zigbee_serial_port: /dev/ttyUSB0
+
+# Server-specific resource limits
+docker_memory_limit: "8g"
+docker_cpu_shares: 2048

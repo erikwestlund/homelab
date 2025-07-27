@@ -1,8 +1,6 @@
 # Homelab Infrastructure
 
-This repository contains infrastructure-as-code for managing two Proxmox servers:
-- **Nexus**: Critical infrastructure (Home Assistant, Pi-hole, Tailscale, Zigbee2MQTT)
-- **Hatchery**: Resource-intensive services (Plex, Windows VMs)
+This repository contains infrastructure-as-code for managing homelab services across Proxmox servers. Services can be deployed flexibly based on server resources and requirements.
 
 ## Getting Started on Fresh Debian 12 Servers
 
@@ -31,27 +29,41 @@ cd homelab
 
 ```
 homelab/
-├── nexus/              # Critical infrastructure services
+├── services/           # All service configurations
 │   ├── zigbee-mqtt/    # Mosquitto + Zigbee2MQTT setup
 │   ├── home-assistant/ # Home Assistant configuration
 │   ├── pihole/         # Pi-hole DNS configuration
-│   └── tailscale/      # Tailscale exit node setup
-├── hatchery/           # Resource-intensive services
+│   ├── tailscale/      # Tailscale exit node setup
 │   ├── plex/           # Plex media server
 │   └── windows-vms/    # Windows VM configurations
-├── deployments/        # Production-ready configurations
+├── ansible/            # Ansible automation
+│   ├── inventories/    # Server definitions
+│   ├── roles/          # Service roles
+│   └── playbooks/      # Deployment playbooks
 ├── scripts/            # Utility scripts
 │   └── debian12/       # Debian 12 specific scripts
+├── directions/         # Step-by-step guides
+├── deployments/        # Production-ready configurations
 └── backups/            # Backup storage (gitignored)
 ```
 
-## Zigbee-MQTT Setup Example
+## Quick Start with Ansible
 
-For detailed setup of specific services, see their respective directories. For example:
+For automated deployment of services:
 
 ```bash
-# Setup Zigbee-MQTT on Nexus
-cd nexus/zigbee-mqtt
+cd ansible
+ansible-galaxy install -r requirements.yml
+ansible-playbook playbooks/site.yml
+```
+
+## Manual Service Setup Example
+
+For manual setup of specific services:
+
+```bash
+# Setup Zigbee-MQTT
+cd services/zigbee-mqtt
 ./setup.sh                          # Install to default /opt/docker
 ./setup.sh --install-dir ~/homelab  # Install to custom directory
 ```

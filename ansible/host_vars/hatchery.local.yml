@@ -1,0 +1,12 @@
+---
+# Hatchery server specific overrides
+# Example: More resources for Plex
+plex_memory_limit: "8g"
+plex_cpu_shares: 4096
+
+# If hardware transcoding available
+plex_enable_hw_transcoding: true
+
+# Windows VM resources
+vm_memory: 16384
+vm_cores: 8

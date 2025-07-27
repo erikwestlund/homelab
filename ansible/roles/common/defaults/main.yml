@@ -1,0 +1,9 @@
+---
+# Docker installation method
+docker_edition: ce
+docker_package: "docker-{{ docker_edition }}"
+
+# Common directories
+docker_base_dir: /opt/docker
+docker_config_dir: "{{ docker_base_dir }}/configs"
+docker_data_dir: "{{ docker_base_dir }}/data"

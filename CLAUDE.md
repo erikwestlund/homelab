@@ -4,35 +4,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains infrastructure-as-code for managing two Proxmox servers:
-- **Nexus**: Critical infrastructure (Home Assistant, Pi-hole, Tailscale, Zigbee2MQTT)
-- **Hatchery**: Resource-intensive services (Plex, Windows VMs)
+This repository contains infrastructure-as-code for managing homelab services across Proxmox servers. Services can be deployed to any server based on resource requirements and availability.
 
-The repository provides scripts, Docker configurations, and deployment templates for quick service configuration.
+The repository provides scripts, Docker configurations, Ansible playbooks, and deployment templates for quick service configuration.
 
 ## Repository Structure
 
 ```
 homelab/
-├── nexus/              # Critical infrastructure services
+├── services/           # All service configurations
 │   ├── zigbee-mqtt/    # Mosquitto + Zigbee2MQTT setup
 │   ├── home-assistant/ # Home Assistant configuration
 │   ├── pihole/         # Pi-hole DNS configuration
-│   └── tailscale/      # Tailscale exit node setup
-├── hatchery/           # Resource-intensive services
+│   ├── tailscale/      # Tailscale exit node setup
 │   ├── plex/           # Plex media server
 │   └── windows-vms/    # Windows VM configurations
+├── ansible/            # Ansible playbooks and roles
+│   ├── inventories/    # Server definitions
+│   ├── roles/          # Service roles
+│   └── playbooks/      # Deployment playbooks
+├── scripts/            # Utility scripts
+│   └── debian12/       # Debian 12 specific scripts
+├── directions/         # Step-by-step guides
 ├── deployments/        # Production-ready configurations
-│   ├── nexus/          # Finalized configs for Nexus
-│   └── hatchery/       # Finalized configs for Hatchery
 └── backups/            # Backup storage (gitignored)
 ```
 
-## Zigbee-MQTT Commands (Nexus)
+## Zigbee-MQTT Commands
 
 ### Initial Setup
 ```bash
-# From nexus/zigbee-mqtt directory
+# From services/zigbee-mqtt directory
 ./setup.sh                          # Install to default /opt/docker
 ./setup.sh --install-dir ~/homelab  # Install to custom directory
 ```
@@ -60,12 +62,12 @@ curl http://localhost:8080  # Test Zigbee2MQTT web UI
 
 ## Deployment Workflow
 
-1. **Development**: Work in service directories (`nexus/*/` or `hatchery/*/`)
+1. **Development**: Work in service directories (`services/*/`)
 2. **Testing**: Test configurations locally or in development environment
-3. **Production**: Copy final configs to `deployments/nexus/*/` or `deployments/hatchery/*/`
+3. **Production**: Deploy using Ansible playbooks or copy final configs to `deployments/`
 4. **Backup**: Store sensitive data and backups in `backups/` (gitignored)
 
-## Zigbee-MQTT Architecture (Nexus)
+## Zigbee-MQTT Architecture
 
 ### Service Structure
 - **Mosquitto**: MQTT broker on ports 1883 (MQTT) and 9001 (WebSocket)
@@ -89,7 +91,7 @@ curl http://localhost:8080  # Test Zigbee2MQTT web UI
         └── database.db          # Device database
 ```
 
-### Key Scripts (in nexus/zigbee-mqtt/)
+### Key Scripts (in services/zigbee-mqtt/)
 - **setup.sh**: Initializes environment, generates configs, creates MQTT users
 - **install-monitor.sh**: Sets up cron-based monitoring for service health
 - **monitor-zigbee.sh**: Health check script that restarts services if needed
@@ -109,7 +111,8 @@ curl http://localhost:8080  # Test Zigbee2MQTT web UI
 ## Development Notes
 
 ### General Repository Guidelines
-- Each service has its own directory under `nexus/` or `hatchery/`
+- Each service has its own directory under `services/`
+- Use Ansible roles in `ansible/roles/` for automated deployment
 - Production-ready configurations go in `deployments/`
 - Use `backups/` for sensitive data that shouldn't be in git
 - Keep deployment files named with their standard names (e.g., `docker-compose.yml`)
@@ -121,7 +124,8 @@ curl http://localhost:8080  # Test Zigbee2MQTT web UI
 - Services depend on each other: Zigbee2MQTT requires Mosquitto to be healthy first
 
 ### Adding New Services
-1. Create directory under appropriate server (`nexus/` or `hatchery/`)
-2. Add setup scripts and documentation
-3. Test thoroughly
-4. Copy final configurations to `deployments/`
+1. Create directory under `services/`
+2. Create Ansible role in `ansible/roles/`
+3. Add setup scripts and documentation
+4. Test thoroughly
+5. Deploy with Ansible playbooks

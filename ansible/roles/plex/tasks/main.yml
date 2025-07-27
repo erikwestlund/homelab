@@ -1,0 +1,59 @@
+---
+- name: Create Plex directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ plex_puid }}"
+    group: "{{ plex_pgid }}"
+    mode: '0755'
+  loop:
+    - "{{ plex_config_dir }}"
+    - "{{ plex_movies_dir }}"
+    - "{{ plex_tv_dir }}"
+    - "{{ plex_music_dir }}"
+    - "{{ plex_photos_dir }}"
+  become: yes
+
+- name: Check if Intel GPU exists for hardware transcoding
+  stat:
+    path: /dev/dri
+  register: dri_device
+  when: plex_enable_hw_transcoding
+
+- name: Deploy Plex container
+  docker_container:
+    name: "{{ plex_container_name }}"
+    image: "{{ plex_image }}"
+    state: started
+    restart_policy: unless-stopped
+    network_mode: "{{ plex_network_mode }}"
+    env:
+      PUID: "{{ plex_puid | string }}"
+      PGID: "{{ plex_pgid | string }}"
+      TZ: "{{ plex_timezone }}"
+      VERSION: "docker"
+      PLEX_CLAIM: "{{ plex_claim_token | default(omit) }}"
+    volumes:
+      - "{{ plex_config_dir }}:/config"
+      - "{{ plex_movies_dir }}:/movies"
+      - "{{ plex_tv_dir }}:/tv"
+      - "{{ plex_music_dir }}:/music"
+      - "{{ plex_photos_dir }}:/photos"
+    devices: "{{ plex_devices if (plex_enable_hw_transcoding and dri_device.stat.exists) else omit }}"
+    memory: "{{ plex_memory_limit }}"
+    cpu_shares: "{{ plex_cpu_shares }}"
+  become: yes
+
+- name: Wait for Plex to start
+  wait_for:
+    port: "{{ plex_port }}"
+    delay: 10
+    timeout: 60
+  when: plex_network_mode == "host"
+
+- name: Create Plex update script
+  template:
+    src: update-plex.sh.j2
+    dest: /opt/docker/plex/update-plex.sh
+    mode: '0755'
+  become: yes

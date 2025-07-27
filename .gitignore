@@ -34,13 +34,11 @@ docker/zigbee2mqtt/data/.backup/
 
 # Backups
 z2mbackup/
-# Ignore contents of backup directories but keep the directories
-backups/nexus/*
-!backups/nexus/.gitkeep
-backups/hatchery/*
-!backups/hatchery/.gitkeep
-backups/legacy/*
-!backups/legacy/.gitkeep
+# Ignore all backup contents but keep directory structure
+backups/**/*
+!backups/.gitkeep
+!backups/*/.gitkeep
+!backups/README.md
 
 # Temporary files for local copying
 configuration.yaml
@@ -49,3 +47,8 @@ docker-compose-with-healthchecks.yml
 docker-compose-reliable.yml
 docker-compose-limits.yml
 monitor-zigbee.sh
+
+# Ansible secrets
+ansible/secrets.yaml
+ansible/vault.yml
+*.vault.yml

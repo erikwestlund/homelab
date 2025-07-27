@@ -4,20 +4,32 @@ This directory contains finalized, tested configuration files ready for deployme
 
 ## Structure
 
-- `nexus/` - Production configurations for Nexus services
-- `hatchery/` - Production configurations for Hatchery services
+```
+deployments/
+└── services/           # Production configs organized by service
+    ├── zigbee-mqtt/
+    ├── home-assistant/
+    ├── pihole/
+    ├── plex/
+    └── ...
+```
 
 ## Usage
 
-When a configuration is tested and ready for production use, copy it here with a descriptive filename. These files serve as:
+When a configuration is tested and ready for production use, copy it here. These files serve as:
 
 1. Quick deployment references
 2. Known-good configurations for recovery
 3. Templates for similar services
+4. Ansible deployment sources
 
-## Naming Convention
+## Workflow
 
-Use descriptive names that include the service and purpose:
-- `zigbee-mqtt-docker-compose.yml`
-- `home-assistant-docker-compose.yml`
-- `plex-docker-compose-gpu.yml`
+1. Develop and test in `services/SERVICE_NAME/`
+2. Deploy with Ansible from `ansible/`
+3. Copy final, working configs here for reference
+4. Use these as templates for similar deployments
+
+## Note
+
+These configurations are server-agnostic. Server-specific values (IPs, paths, etc.) should use environment variables or be documented clearly.

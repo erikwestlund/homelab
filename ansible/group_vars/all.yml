@@ -1,0 +1,14 @@
+---
+# Common variables for all hosts
+timezone: America/New_York
+
+# Docker settings
+docker_compose_version: "2.24.1"
+
+# Common user/group IDs
+default_puid: 1000
+default_pgid: 1000
+
+# Common directories
+media_base_dir: /media
+backup_base_dir: /backups

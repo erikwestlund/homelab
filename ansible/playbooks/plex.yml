@@ -1,0 +1,6 @@
+---
+# Deploy only Plex
+- name: Deploy Plex Media Server
+  hosts: hatchery
+  roles:
+    - plex

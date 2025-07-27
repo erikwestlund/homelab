@@ -1,0 +1,30 @@
+---
+# Main playbook for entire homelab
+- name: Deploy common configuration to all hosts
+  hosts: all
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - common
+  tags:
+    - common
+
+- name: Deploy Nexus services
+  hosts: nexus
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - { role: pihole, tags: ['pihole'] }
+    - { role: home-assistant, tags: ['home-assistant', 'ha'] }
+    - { role: zigbee-mqtt, tags: ['zigbee-mqtt', 'zigbee'] }
+  tags:
+    - nexus
+
+- name: Deploy Hatchery services
+  hosts: hatchery
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - { role: plex, tags: ['plex'] }
+  tags:
+    - hatchery

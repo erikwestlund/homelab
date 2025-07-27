@@ -1,0 +1,6 @@
+---
+- name: restart plex
+  docker_container:
+    name: "{{ plex_container_name }}"
+    state: restarted
+  become: yes
