@@ -1,9 +1,28 @@
 ---
+- name: Check if this is a Proxmox VE system
+  stat:
+    path: /etc/pve
+  register: pve_check
+
+- name: Fix Proxmox repositories
+  when: pve_check.stat.exists
+  block:
+    - name: Remove Proxmox enterprise repository
+      lineinfile:
+        path: /etc/apt/sources.list.d/pve-enterprise.list
+        line: "deb https://enterprise.proxmox.com/debian/pve {{ ansible_distribution_release }} pve-enterprise"
+        state: absent
+
+    - name: Add Proxmox no-subscription repository
+      apt_repository:
+        repo: "deb http://download.proxmox.com/debian/pve {{ ansible_distribution_release }} pve-no-subscription"
+        state: present
+        filename: pve-no-subscription
+
 - name: Update apt cache
   apt:
     update_cache: yes
     cache_valid_time: 3600
-  become: yes
 
 - name: Install essential packages
   apt:
@@ -16,21 +35,25 @@
       - python3-pip
       - git
       - htop
+      - btop
       - vim
     state: present
-  become: yes
 
 - name: Add Docker GPG key
   apt_key:
     url: https://download.docker.com/linux/debian/gpg
     state: present
-  become: yes
+
+- name: Get DEB architecture
+  shell: dpkg --print-architecture
+  register: deb_architecture
+  changed_when: false
 
 - name: Add Docker repository
   apt_repository:
-    repo: "deb [arch={{ ansible_architecture }}] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    repo: "deb [arch={{ deb_architecture.stdout }}] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
     state: present
-  become: yes
+    update_cache: yes
 
 - name: Install Docker
   apt:
@@ -40,28 +63,24 @@
       - containerd.io
       - docker-compose-plugin
     state: present
-  become: yes
 
 - name: Ensure Docker service is started and enabled
   systemd:
     name: docker
     state: started
     enabled: yes
-  become: yes
 
 - name: Add user to docker group
   user:
     name: "{{ ansible_user }}"
     groups: docker
     append: yes
-  become: yes
   when: ansible_user != 'root'
 
 - name: Install Docker SDK for Python
-  pip:
-    name: docker
+  apt:
+    name: python3-docker
     state: present
-  become: yes
 
 - name: Create common directories
   file:

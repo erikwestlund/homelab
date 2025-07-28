@@ -1,0 +1,14 @@
+---
+- name: Create add proxy hosts script
+  template:
+    src: add-proxy-hosts.sh.j2
+    dest: "{{ npm_data_dir }}/add-proxy-hosts.sh"
+    mode: '0755'
+
+- name: Run add proxy hosts script
+  shell: "{{ npm_data_dir }}/add-proxy-hosts.sh"
+  register: add_hosts_result
+
+- name: Display result
+  debug:
+    msg: "{{ add_hosts_result.stdout_lines }}"

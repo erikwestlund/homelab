@@ -1,0 +1,8 @@
+---
+- name: Setup Plex Server
+  hosts: plex-server
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - common
+    - plex

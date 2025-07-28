@@ -1,0 +1,8 @@
+---
+- name: Setup Home Assistant
+  hosts: home-assistant
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - common
+    - home-assistant

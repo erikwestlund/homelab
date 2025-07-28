@@ -1,24 +1,24 @@
 ---
 all:
   children:
-    nexus:
+    proxmox_hosts:
       hosts:
-        nexus_pve:
+        nexus:
           ansible_host: nexus.lan
-          ansible_user: root
-          ansible_ssh_private_key_file: ~/.ssh/scv
-    hatchery:
-      hosts:
-        hatchery_pve:
+        hatchery:
           ansible_host: hatchery.lan
-          ansible_user: root
-          ansible_ssh_private_key_file: ~/.ssh/scv
+    nexus_services:
+      hosts:
+        docker-services-host:
+          ansible_host: docker-services-host.lan
+        pihole:
+          ansible_host: pihole.lan
+        home-assistant:
+          ansible_host: home-assistant.lan
+    hatchery_services:
+      hosts:
         plex-server:
           ansible_host: plex-server.lan
-          ansible_user: root
-          ansible_ssh_private_key_file: ~/.ssh/scv
   vars:
     ansible_python_interpreter: /usr/bin/python3
-    ansible_become: yes
-    ansible_become_method: sudo
     ansible_ssh_private_key_file: ~/.ssh/scv

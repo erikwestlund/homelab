@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  nginx-proxy-manager:
+    image: {{ npm_image }}
+    container_name: {{ npm_container_name }}
+    restart: unless-stopped
+    ports:
+      - '{{ npm_http_port }}:80'
+      - '{{ npm_https_port }}:443'
+      - '{{ npm_admin_port }}:81'  # We'll use firewall rules to restrict access
+    # Uncomment the environment section below if IPv6 is not enabled on your host
+    # environment:
+    #   DISABLE_IPV6: 'true'
+    volumes:
+      - {{ npm_db_dir }}:/data
+      - {{ npm_letsencrypt_dir }}:/etc/letsencrypt
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:81/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s

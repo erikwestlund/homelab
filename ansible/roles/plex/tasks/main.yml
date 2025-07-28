@@ -1,18 +1,48 @@
 ---
-- name: Create Plex directories
+- name: Install CIFS utilities
+  apt:
+    name: cifs-utils
+    state: present
+  become: yes
+
+- name: Create Plex config directory
   file:
-    path: "{{ item }}"
+    path: "{{ plex_config_dir }}"
     state: directory
     owner: "{{ plex_puid }}"
     group: "{{ plex_pgid }}"
     mode: '0755'
-  loop:
-    - "{{ plex_config_dir }}"
-    - "{{ plex_movies_dir }}"
-    - "{{ plex_tv_dir }}"
-    - "{{ plex_music_dir }}"
-    - "{{ plex_photos_dir }}"
   become: yes
+
+- name: Create media mount point
+  file:
+    path: /media
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Create SMB credentials file
+  copy:
+    content: |
+      username={{ nas.media_server.username }}
+      password={{ nas.media_server.password }}
+      domain=WORKGROUP
+    dest: /root/.smbcredentials
+    owner: root
+    group: root
+    mode: '0600'
+  become: yes
+  when: nas.media_server is defined
+
+- name: Mount NAS Media share
+  mount:
+    src: "//{{ nas.media_server.host }}/Media"
+    path: /media
+    fstype: cifs
+    opts: "credentials=/root/.smbcredentials,uid={{ plex_puid }},gid={{ plex_pgid }},iocharset=utf8,file_mode=0777,dir_mode=0777"
+    state: mounted
+  become: yes
+  when: nas.media_server is defined
 
 - name: Check if Intel GPU exists for hardware transcoding
   stat:
@@ -35,10 +65,7 @@
       PLEX_CLAIM: "{{ plex_claim_token | default(omit) }}"
     volumes:
       - "{{ plex_config_dir }}:/config"
-      - "{{ plex_movies_dir }}:/movies"
-      - "{{ plex_tv_dir }}:/tv"
-      - "{{ plex_music_dir }}:/music"
-      - "{{ plex_photos_dir }}:/photos"
+      - "/media:/media"
     devices: "{{ plex_devices if (plex_enable_hw_transcoding and dri_device.stat.exists) else omit }}"
     memory: "{{ plex_memory_limit }}"
     cpu_shares: "{{ plex_cpu_shares }}"
@@ -55,5 +82,91 @@
   template:
     src: update-plex.sh.j2
     dest: /opt/docker/plex/update-plex.sh
+    mode: '0755'
+  become: yes
+
+- name: Create Plex library setup script
+  template:
+    src: setup-libraries.sh.j2
+    dest: /opt/docker/plex/setup-libraries.sh
+    mode: '0755'
+  become: yes
+
+- name: Wait for Plex preferences file to exist
+  wait_for:
+    path: "{{ plex_config_dir }}/Library/Application Support/Plex Media Server/Preferences.xml"
+    timeout: 300
+  when: plex_claim_token is defined and plex_claim_token != ""
+
+- name: Wait for Plex to be claimed
+  shell: |
+    grep -q 'PlexOnlineToken' "{{ plex_config_dir }}/Library/Application Support/Plex Media Server/Preferences.xml"
+  register: plex_claimed
+  until: plex_claimed.rc == 0
+  retries: 60
+  delay: 5
+  when: plex_claim_token is defined and plex_claim_token != ""
+  ignore_errors: yes
+
+- name: Run library setup if Plex is claimed
+  shell: /opt/docker/plex/setup-libraries.sh
+  when: 
+    - plex_claim_token is defined 
+    - plex_claim_token != ""
+    - plex_claimed is succeeded
+  become: yes
+
+- name: Display status
+  debug:
+    msg: |
+      Plex is now running at http://{{ ansible_host }}:32400/web
+      {% if plex_claim_token is defined and plex_claim_token != "" and plex_claimed is succeeded %}
+      Libraries have been automatically configured!
+      {% else %}
+      To add libraries after claiming:
+      ssh root@{{ ansible_host }}
+      /opt/docker/plex/setup-libraries.sh
+      {% endif %}
+
+- name: Create NAS mount monitor script
+  template:
+    src: monitor-nas-mount.sh.j2
+    dest: /opt/docker/plex/monitor-nas-mount.sh
+    mode: '0755'
+  become: yes
+
+- name: Set up NAS mount monitoring cron job
+  cron:
+    name: "Monitor NAS mount for Plex"
+    minute: "*/5"
+    job: "/opt/docker/plex/monitor-nas-mount.sh"
+    user: root
+  become: yes
+
+- name: Create Plex health check script
+  copy:
+    content: |
+      #!/bin/bash
+      # Check if Plex is responsive
+      if ! curl -s -f http://localhost:32400/identity > /dev/null; then
+          echo "[$(date)] Plex not responding, restarting container"
+          docker restart plex
+      fi
+    dest: /opt/docker/plex/health-check.sh
+    mode: '0755'
+  become: yes
+
+- name: Set up Plex health check cron job
+  cron:
+    name: "Plex health check"
+    minute: "*/10"
+    job: "/opt/docker/plex/health-check.sh >> /var/log/plex-health.log 2>&1"
+    user: root
+  become: yes
+
+- name: Create Plex status check script
+  template:
+    src: check-plex-status.sh.j2
+    dest: /opt/docker/plex/check-status.sh
     mode: '0755'
   become: yes

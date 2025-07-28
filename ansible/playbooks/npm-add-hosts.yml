@@ -1,0 +1,11 @@
+---
+- name: Add hosts to Nginx Proxy Manager
+  hosts: docker-services-host
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  tasks:
+    - name: Include NPM defaults
+      include_vars: "{{ playbook_dir }}/../roles/nginx-proxy-manager/defaults/main.yml"
+    
+    - name: Add proxy hosts
+      include_tasks: "{{ playbook_dir }}/../roles/nginx-proxy-manager/tasks/add-hosts.yml"

@@ -1,0 +1,39 @@
+---
+- name: Fix Proxmox Enterprise Repository Issues
+  hosts: proxmox_hosts
+  tasks:
+    - name: Remove enterprise repository files
+      file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/apt/sources.list.d/pve-enterprise.list
+        - /etc/apt/sources.list.d/ceph.list
+    
+    - name: Add Proxmox no-subscription repository
+      copy:
+        content: "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription\n"
+        dest: /etc/apt/sources.list.d/pve-no-subscription.list
+        mode: '0644'
+    
+    - name: Add Ceph no-subscription repository
+      copy:
+        content: "deb http://download.proxmox.com/debian/ceph-quincy bookworm no-subscription\n"
+        dest: /etc/apt/sources.list.d/ceph.list
+        mode: '0644'
+    
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+      register: apt_update_result
+      failed_when: false
+    
+    - name: Display apt update result
+      debug:
+        msg: "{{ apt_update_result.stdout_lines | default([]) }}"
+      when: apt_update_result.stdout_lines is defined
+    
+    - name: Upgrade all packages
+      apt:
+        upgrade: dist
+      when: apt_update_result is succeeded

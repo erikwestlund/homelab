@@ -11,10 +11,24 @@ plex_pgid: 1000
 # Directories
 plex_config_dir: /opt/docker/plex/config
 plex_media_dir: /media
-plex_movies_dir: "{{ plex_media_dir }}/movies"
-plex_tv_dir: "{{ plex_media_dir }}/tv"
-plex_music_dir: "{{ plex_media_dir }}/music"
-plex_photos_dir: "{{ plex_media_dir }}/photos"
+
+# Library directories (matching NAS structure)
+plex_libraries:
+  - name: "Movies"
+    type: "movie"
+    path: "/media/Movies"
+  - name: "TV Shows"
+    type: "show"
+    path: "/media/TV Shows"
+  - name: "Music"
+    type: "artist"
+    path: "/media/Music"
+  - name: "Documentaries"
+    type: "movie"
+    path: "/media/Documentaries"
+  - name: "Courses"
+    type: "show"
+    path: "/media/Courses"
 
 # Network settings
 plex_port: 32400

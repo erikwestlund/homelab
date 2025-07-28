@@ -1,0 +1,126 @@
+#!/bin/bash
+# Add proxy hosts to already configured NPM
+set -e
+
+NPM_URL="http://localhost:{{ npm_admin_port }}"
+EMAIL="{{ npm.admin_email }}"
+PASSWORD="{{ npm.admin_password }}"
+
+# Get auth token
+echo "Authenticating..."
+TOKEN=$(curl -s -X POST "${NPM_URL}/api/tokens" \
+    -H "Content-Type: application/json" \
+    -d "{\"identity\":\"${EMAIL}\",\"secret\":\"${PASSWORD}\"}" | \
+    jq -r '.token')
+
+if [ "${TOKEN}" = "null" ] || [ -z "${TOKEN}" ]; then
+    echo "Failed to authenticate. Check your credentials in secrets.yaml"
+    exit 1
+fi
+
+echo "Authenticated successfully!"
+
+# Create local network access list
+echo "Creating access list..."
+ACCESS_LIST_JSON=$(curl -s -X GET "${NPM_URL}/api/nginx/access-lists" \
+    -H "Authorization: Bearer ${TOKEN}")
+
+LOCAL_ACCESS_ID=$(echo "${ACCESS_LIST_JSON}" | jq -r '.[] | select(.name == "Local Network Only") | .id')
+
+if [ -z "${LOCAL_ACCESS_ID}" ] || [ "${LOCAL_ACCESS_ID}" = "null" ]; then
+    echo "Creating Local Network Only access list..."
+    RESPONSE=$(curl -s -X POST "${NPM_URL}/api/nginx/access-lists" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "name": "Local Network Only",
+            "satisfy_any": true,
+            "pass_auth": false,
+            "items": [
+                {"type": "allow", "address": "{{ npm_local_network }}"}{% for ip in npm_additional_allowed_ips %},
+                {"type": "allow", "address": "{{ ip }}"}{% endfor %}
+            ]
+        }')
+    LOCAL_ACCESS_ID=$(echo "${RESPONSE}" | jq -r '.id')
+    echo "Created access list with ID: ${LOCAL_ACCESS_ID}"
+else
+    echo "Access list already exists with ID: ${LOCAL_ACCESS_ID}"
+fi
+
+# Add proxy hosts
+{% for service in npm_services %}
+echo ""
+echo "Adding {{ service.name }}..."
+
+# Check if already exists
+EXISTING=$(curl -s -X GET "${NPM_URL}/api/nginx/proxy-hosts" \
+    -H "Authorization: Bearer ${TOKEN}" | \
+    jq -r '.[] | select(.domain_names[] == "{{ service.domain }}") | .id')
+
+if [ -n "${EXISTING}" ] && [ "${EXISTING}" != "null" ]; then
+    echo "{{ service.domain }} already exists, skipping..."
+    continue
+fi
+
+# Determine access list
+{% if service.access_list_id == "local_only" %}
+ACCESS_LIST="${LOCAL_ACCESS_ID}"
+{% elif service.access_list_id == "public" %}
+ACCESS_LIST="0"
+{% else %}
+ACCESS_LIST="0"
+{% endif %}
+
+# Create proxy host
+RESPONSE=$(curl -s -X POST "${NPM_URL}/api/nginx/proxy-hosts" \
+    -H "Authorization: Bearer ${TOKEN}" \
+    -H "Content-Type: application/json" \
+    -d '{
+        "domain_names": ["{{ service.domain }}"],
+        "forward_host": "{{ service.forward_host }}",
+        "forward_port": {{ service.forward_port }},
+        "forward_scheme": "{{ service.forward_scheme }}",
+        "ssl_forced": {{ service.ssl_forced | lower }},
+        "hsts_enabled": {{ npm_hsts_enabled | lower }},
+        "hsts_subdomains": {{ npm_hsts_subdomains | lower }},
+        "http2_support": {{ npm_http2_support | lower }},
+        "block_exploits": {{ service.block_exploits | default(true) | lower }},
+        "caching_enabled": false,
+        "websocket_support": {{ service.websockets_support | default(false) | lower }},
+        "access_list_id": '"${ACCESS_LIST}"',
+        "advanced_config": {{ service.advanced_config | default('') | to_json }},
+        "certificate_id": 0,
+        "meta": {
+            "letsencrypt_agree": true,
+            "letsencrypt_email": "{{ npm_ssl_email }}"
+        }
+    }')
+
+PROXY_ID=$(echo "${RESPONSE}" | jq -r '.id')
+
+if [ -n "${PROXY_ID}" ] && [ "${PROXY_ID}" != "null" ]; then
+    echo "Created proxy host for {{ service.domain }} with ID: ${PROXY_ID}"
+    
+    # Request SSL certificate
+    echo "Requesting SSL certificate..."
+    curl -s -X POST "${NPM_URL}/api/nginx/proxy-hosts/${PROXY_ID}/certificates" \
+        -H "Authorization: Bearer ${TOKEN}" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "provider": "letsencrypt",
+            "letsencrypt_agree": true,
+            "letsencrypt_email": "{{ npm_ssl_email }}",
+            "dns_challenge": false
+        }' > /dev/null
+    echo "SSL certificate requested for {{ service.domain }}"
+else
+    echo "Error creating proxy host for {{ service.domain }}"
+    echo "${RESPONSE}" | jq .
+fi
+
+sleep 2
+{% endfor %}
+
+echo ""
+echo "Configuration complete!"
+echo "Note: SSL certificates may take a few minutes to be issued."

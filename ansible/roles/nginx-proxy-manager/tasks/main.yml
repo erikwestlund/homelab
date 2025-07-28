@@ -1,0 +1,160 @@
+---
+- name: Install required packages
+  apt:
+    name:
+      - jq
+      - curl
+      - ufw
+    state: present
+
+- name: Configure UFW firewall for NPM
+  block:
+    - name: Allow SSH
+      ufw:
+        rule: allow
+        port: '22'
+        proto: tcp
+    
+    - name: Allow HTTP from anywhere (needed for Let's Encrypt)
+      ufw:
+        rule: allow
+        port: '80'
+        proto: tcp
+    
+    - name: Allow HTTPS from anywhere
+      ufw:
+        rule: allow
+        port: '443'
+        proto: tcp
+    
+    - name: Allow NPM admin port only from local network
+      ufw:
+        rule: allow
+        port: '81'
+        proto: tcp
+        src: '192.168.1.0/24'
+        comment: 'NPM Admin - Local only'
+    
+    - name: Allow Zigbee2MQTT port from local network
+      ufw:
+        rule: allow
+        port: '8080'
+        proto: tcp
+        src: '192.168.1.0/24'
+        comment: 'Zigbee2MQTT - Local only'
+    
+    - name: Enable UFW
+      ufw:
+        state: enabled
+        policy: deny
+        direction: incoming
+  when: npm_enable_firewall | default(true)
+
+- name: Create NPM directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ npm_data_dir }}"
+    - "{{ npm_db_dir }}"
+    - "{{ npm_letsencrypt_dir }}"
+
+- name: Copy docker-compose file
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ npm_data_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Start Nginx Proxy Manager
+  shell: |
+    cd {{ npm_data_dir }}
+    docker compose up -d
+
+- name: Wait for NPM to be healthy
+  uri:
+    url: "http://localhost:{{ npm_admin_port }}/api/"
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 30
+  delay: 10
+
+- name: Create NPM configuration script
+  template:
+    src: configure-npm.sh.j2
+    dest: "{{ npm_data_dir }}/configure-npm.sh"
+    mode: '0755'
+
+- name: Run NPM configuration
+  shell: "{{ npm_data_dir }}/configure-npm.sh"
+  register: npm_config_result
+  changed_when: "'Creating proxy host' in npm_config_result.stdout"
+
+- name: Create NPM update script
+  copy:
+    content: |
+      #!/bin/bash
+      cd {{ npm_data_dir }}
+      docker compose pull
+      docker compose up -d
+    dest: "{{ npm_data_dir }}/update-npm.sh"
+    mode: '0755'
+
+- name: Create NPM backup script
+  copy:
+    content: |
+      #!/bin/bash
+      BACKUP_DIR="/opt/backups/nginx-proxy-manager"
+      mkdir -p "${BACKUP_DIR}"
+      cd {{ npm_data_dir }}
+      docker compose stop
+      tar czf "${BACKUP_DIR}/npm-backup-$(date +%Y%m%d-%H%M%S).tar.gz" data/ letsencrypt/
+      docker compose start
+      # Keep only last 7 backups
+      find "${BACKUP_DIR}" -name "npm-backup-*.tar.gz" -mtime +7 -delete
+    dest: "{{ npm_data_dir }}/backup-npm.sh"
+    mode: '0755'
+
+- name: Set up NPM backup cron job
+  cron:
+    name: "Backup Nginx Proxy Manager"
+    hour: 3
+    minute: 0
+    job: "{{ npm_data_dir }}/backup-npm.sh"
+    user: root
+
+- name: Create NPM health check script
+  copy:
+    content: |
+      #!/bin/bash
+      # Check if NPM is responsive
+      if ! curl -s -f http://localhost:{{ npm_admin_port }}/api/ > /dev/null; then
+          echo "[$(date)] NPM not responding, restarting container"
+          cd {{ npm_data_dir }} && docker compose restart
+      fi
+    dest: "{{ npm_data_dir }}/health-check.sh"
+    mode: '0755'
+
+- name: Set up NPM health check cron job
+  cron:
+    name: "NPM health check"
+    minute: "*/5"
+    job: "{{ npm_data_dir }}/health-check.sh >> /var/log/npm-health.log 2>&1"
+    user: root
+
+- name: Display access information
+  debug:
+    msg: |
+      Nginx Proxy Manager is now running!
+      
+      Admin Interface: http://{{ ansible_host }}:{{ npm_admin_port }}
+      Username: {{ npm.admin_email }}
+      Password: {{ npm.admin_password }}
+      
+      Configured proxy hosts:
+      {% for service in npm_services %}
+      - https://{{ service.domain }} → {{ service.forward_scheme }}://{{ service.forward_host }}:{{ service.forward_port }}
+      {% endfor %}
+      
+      Note: It may take a few minutes for SSL certificates to be issued.

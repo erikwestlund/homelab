@@ -1,0 +1,159 @@
+---
+# Nginx Proxy Manager defaults
+npm_data_dir: /opt/nginx-proxy-manager
+npm_db_dir: "{{ npm_data_dir }}/data"
+npm_letsencrypt_dir: "{{ npm_data_dir }}/letsencrypt"
+
+# Container settings
+npm_container_name: nginx-proxy-manager
+npm_image: jc21/nginx-proxy-manager:latest
+
+# Network settings
+npm_http_port: 80
+npm_https_port: 443
+npm_admin_port: 81
+
+# Default admin credentials (will be changed)
+npm_default_email: admin@example.com
+npm_default_password: changeme
+
+# SSL settings
+npm_ssl_email: "{{ npm.ssl_email | default('admin@pequod.sh') }}"
+npm_force_ssl: true
+npm_hsts_enabled: true
+npm_hsts_subdomains: true
+npm_http2_support: true
+
+# Access control
+npm_local_network: "192.168.1.0/24"
+npm_additional_allowed_ips: "{{ npm.additional_allowed_ips | default([]) }}"
+
+# Admin interface security
+npm_admin_allowed_ips: "192.168.1.0/24"  # Only local network can access admin
+
+# Service configurations
+npm_services:
+  - name: "NPM Admin Panel"
+    domain: "npm.pequod.sh"
+    forward_host: "127.0.0.1"
+    forward_port: 81
+    forward_scheme: "http"
+    ssl_forced: true
+    block_exploits: true
+    access_list_id: "local_only"
+  - name: "Proxmox Nexus"
+    domain: "nexus.pequod.sh"
+    forward_host: "192.168.1.100"
+    forward_port: 8006
+    forward_scheme: "https"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # Proxmox specific settings
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_buffering off;
+      client_max_body_size 0;
+      proxy_connect_timeout 3600s;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+      send_timeout 3600s;
+
+  - name: "Proxmox Hatchery"
+    domain: "hatchery.pequod.sh"
+    forward_host: "192.168.1.2"
+    forward_port: 8006
+    forward_scheme: "https"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # Proxmox specific settings
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_buffering off;
+      client_max_body_size 0;
+      proxy_connect_timeout 3600s;
+      proxy_read_timeout 3600s;
+      proxy_send_timeout 3600s;
+      send_timeout 3600s;
+
+  - name: "Pi-hole"
+    domain: "pihole.pequod.sh"
+    forward_host: "192.168.1.101"
+    forward_port: 80
+    forward_scheme: "http"
+    ssl_forced: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # Pi-hole admin path
+      location / {
+        return 301 /admin;
+      }
+
+  - name: "Home Assistant"
+    domain: "ha.pequod.sh"
+    forward_host: "192.168.1.6"
+    forward_port: 8123
+    forward_scheme: "http"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # Home Assistant specific settings
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+
+  - name: "Plex"
+    domain: "plex.pequod.sh"
+    forward_host: "192.168.1.7"
+    forward_port: 32400
+    forward_scheme: "http"
+    ssl_forced: true
+    block_exploits: true
+    access_list_id: "public"  # Plex needs public access
+    advanced_config: |
+      # Plex specific settings
+      proxy_buffering off;
+      proxy_set_header X-Plex-Client-Identifier $http_x_plex_client_identifier;
+      proxy_set_header X-Plex-Device $http_x_plex_device;
+      proxy_set_header X-Plex-Device-Name $http_x_plex_device_name;
+      proxy_set_header X-Plex-Platform $http_x_plex_platform;
+      proxy_set_header X-Plex-Platform-Version $http_x_plex_platform_version;
+      proxy_set_header X-Plex-Product $http_x_plex_product;
+      proxy_set_header X-Plex-Token $http_x_plex_token;
+      proxy_set_header X-Plex-Version $http_x_plex_version;
+      proxy_set_header X-Plex-Nocache $http_x_plex_nocache;
+      proxy_set_header X-Plex-Provides $http_x_plex_provides;
+      proxy_set_header X-Plex-Device-Vendor $http_x_plex_device_vendor;
+      proxy_set_header X-Plex-Model $http_x_plex_model;
+
+  - name: "Zigbee2MQTT"
+    domain: "mqtt.pequod.sh"
+    forward_host: "192.168.1.103"
+    forward_port: 8080
+    forward_scheme: "http"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    
+  - name: "GLKVM"
+    domain: "kvm.pequod.sh"
+    forward_host: "192.168.1.XXX"  # Update with actual GLKVM IP
+    forward_port: 443
+    forward_scheme: "https"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # WebSocket support for KVM
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
+      proxy_buffering off;

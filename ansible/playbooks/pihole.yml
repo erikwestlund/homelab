@@ -1,0 +1,8 @@
+---
+- name: Setup Pi-hole
+  hosts: pihole
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - common
+    - pihole

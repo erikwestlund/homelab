@@ -26,10 +26,7 @@ docker run -d \
   -e PLEX_CLAIM={{ plex_claim_token }} \
 {% endif %}
   -v {{ plex_config_dir }}:/config \
-  -v {{ plex_movies_dir }}:/movies \
-  -v {{ plex_tv_dir }}:/tv \
-  -v {{ plex_music_dir }}:/music \
-  -v {{ plex_photos_dir }}:/photos \
+  -v /media:/media \
 {% if plex_enable_hw_transcoding and dri_device.stat.exists %}
   --device=/dev/dri:/dev/dri \
 {% endif %}

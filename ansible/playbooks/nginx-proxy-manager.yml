@@ -1,0 +1,7 @@
+---
+- name: Setup Nginx Proxy Manager
+  hosts: docker-services-host
+  vars_files:
+    - "{{ playbook_dir }}/../secrets.yaml"
+  roles:
+    - nginx-proxy-manager
