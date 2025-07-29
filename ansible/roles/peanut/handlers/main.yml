@@ -1,0 +1,5 @@
+---
+- name: restart peanut
+  community.docker.docker_compose_v2:
+    project_src: "{{ peanut_data_dir }}"
+    state: restarted

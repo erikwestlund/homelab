@@ -1,0 +1,52 @@
+---
+- name: Setup UPS Monitor Server
+  hosts: ups-monitor
+  vars_files:
+    - ../secrets.yaml
+  
+  roles:
+    - common
+    - nut-server
+    - peanut
+  
+  tasks:
+    - name: Install additional monitoring tools
+      apt:
+        name:
+          - htop
+          - iotop
+          - net-tools
+        state: present
+    
+    - name: Configure firewall for NUT
+      ufw:
+        rule: allow
+        port: "3493"
+        proto: tcp
+        comment: "NUT server"
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes
+    
+    - name: Test UPS communication
+      block:
+        - name: Get UPS status for homelab
+          command: upsc homelab@localhost
+          register: ups1_status
+          changed_when: false
+          ignore_errors: yes
+        
+        - name: Get UPS status for network
+          command: upsc network@localhost
+          register: ups2_status
+          changed_when: false
+          ignore_errors: yes
+        
+        - name: Display UPS 1 status
+          debug:
+            msg: "{{ ups1_status.stdout_lines[:10] | default(['Not detected']) }}"
+          when: ups1_status is defined
+        
+        - name: Display UPS 2 status
+          debug:
+            msg: "{{ ups2_status.stdout_lines[:10] | default(['Not detected']) }}"
+          when: ups2_status is defined

@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+# Network UPS Tools upsd configuration
+
+LISTEN {{ nut_listen_address }} {{ nut_port }}
+
+# Maximum number of concurrent connections
+MAXCONN 64
+
+# Certificate file for SSL
+# CERTFILE /etc/nut/upsd.pem

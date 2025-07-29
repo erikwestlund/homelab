@@ -1,0 +1,15 @@
+# {{ ansible_managed }}
+# Network UPS Tools upsd user configuration
+
+[admin]
+    password = {{ nut_admin_password }}
+    actions = SET
+    instcmds = ALL
+
+[monuser]
+    password = {{ nut_monitor_password }}
+    upsmon master
+
+[peanut]
+    password = {{ nut_monitor_password }}
+    upsmon slave

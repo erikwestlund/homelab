@@ -1,0 +1,28 @@
+# {{ ansible_managed }}
+version: '3.8'
+
+services:
+  peanut:
+    image: brandawg93/peanut:latest
+    container_name: peanut
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - TZ={{ ansible_date_time.tz }}
+      - NUT_HOST={{ nut_host }}
+      - NUT_PORT={{ nut_port }}
+      - NUT_USERNAME=monuser
+      - NUT_PASSWORD={{ nut_monitor_password }}
+      - WEB_HOST=0.0.0.0
+      - WEB_PORT={{ peanut_port }}
+    volumes:
+      - peanut_data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:{{ peanut_port }}/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  peanut_data:
+    driver: local

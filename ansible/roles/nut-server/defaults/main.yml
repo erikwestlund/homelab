@@ -1,0 +1,26 @@
+---
+# NUT server configuration defaults
+nut_mode: netserver
+nut_listen_address: 0.0.0.0
+nut_port: 3493
+
+# UPS definitions
+ups_devices:
+  - name: homelab
+    driver: usbhid-ups
+    port: auto
+    vendorid: "0764"
+    productid: "0601"
+    serial: "CXXPU7012005"
+    desc: "Homelab Servers & Equipment"
+  - name: network
+    driver: usbhid-ups
+    port: auto
+    vendorid: "0764"
+    productid: "0601"
+    serial: "CXXNU7009695"
+    desc: "Network Equipment"
+
+# Use password from secrets.yaml
+nut_admin_password: "{{ peanut.password }}"
+nut_monitor_password: "{{ peanut.password }}"

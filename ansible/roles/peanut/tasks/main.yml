@@ -1,0 +1,34 @@
+---
+- name: Create PeaNUT directory
+  file:
+    path: "{{ peanut_data_dir }}"
+    state: directory
+    mode: '0755'
+
+- name: Deploy docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ peanut_data_dir }}/docker-compose.yml"
+    mode: '0644'
+  notify: restart peanut
+
+- name: Start PeaNUT container
+  community.docker.docker_compose_v2:
+    project_src: "{{ peanut_data_dir }}"
+    state: present
+  register: peanut_start
+
+- name: Wait for PeaNUT to be ready
+  uri:
+    url: "http://localhost:{{ peanut_port }}/api/ping"
+  register: peanut_health
+  until: peanut_health.status == 200
+  retries: 10
+  delay: 5
+  ignore_errors: yes
+
+- name: Display PeaNUT access information
+  debug:
+    msg: 
+      - "PeaNUT is running at: http://{{ ansible_default_ipv4.address }}:{{ peanut_port }}"
+      - "It will automatically discover UPS devices from the local NUT server"

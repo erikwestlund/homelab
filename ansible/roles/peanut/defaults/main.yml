@@ -1,0 +1,6 @@
+---
+# PeaNUT defaults
+peanut_port: 8086
+peanut_data_dir: /opt/docker/peanut
+nut_host: localhost
+nut_port: 3493

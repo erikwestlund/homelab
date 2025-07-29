@@ -1,0 +1,79 @@
+---
+- name: Install NUT packages
+  apt:
+    name:
+      - nut
+      - nut-server
+      - nut-client
+      - usbutils
+    state: present
+    update_cache: yes
+
+- name: Configure NUT mode
+  lineinfile:
+    path: /etc/nut/nut.conf
+    regexp: '^MODE='
+    line: "MODE={{ nut_mode }}"
+    create: yes
+
+- name: Configure UPS devices
+  template:
+    src: ups.conf.j2
+    dest: /etc/nut/ups.conf
+    owner: nut
+    group: nut
+    mode: '0640'
+  notify: restart nut
+
+- name: Configure upsd network settings
+  template:
+    src: upsd.conf.j2
+    dest: /etc/nut/upsd.conf
+    owner: nut
+    group: nut
+    mode: '0640'
+  notify: restart nut
+
+- name: Configure upsd users
+  template:
+    src: upsd.users.j2
+    dest: /etc/nut/upsd.users
+    owner: nut
+    group: nut
+    mode: '0640'
+  notify: restart nut
+
+- name: Configure upsmon
+  template:
+    src: upsmon.conf.j2
+    dest: /etc/nut/upsmon.conf
+    owner: nut
+    group: nut
+    mode: '0640'
+  notify: restart nut
+
+- name: Ensure NUT services are started and enabled
+  systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - nut-server
+    - nut-monitor
+
+- name: Wait for NUT to start
+  wait_for:
+    port: "{{ nut_port }}"
+    host: "{{ nut_listen_address }}"
+    delay: 5
+    timeout: 30
+
+- name: Check UPS detection
+  command: upsc -l
+  register: ups_list
+  changed_when: false
+  ignore_errors: yes
+
+- name: Display detected UPS devices
+  debug:
+    msg: "Detected UPS devices: {{ ups_list.stdout_lines | default([]) }}"

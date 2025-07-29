@@ -1,0 +1,8 @@
+---
+- name: restart nut
+  systemd:
+    name: "{{ item }}"
+    state: restarted
+  loop:
+    - nut-server
+    - nut-monitor

@@ -1,0 +1,46 @@
+# {{ ansible_managed }}
+# Network UPS Tools upsmon configuration
+
+# Monitor the local UPS devices
+{% for ups in ups_devices %}
+MONITOR {{ ups.name }}@localhost 1 monuser {{ nut_monitor_password }} master
+{% endfor %}
+
+# Basic settings
+MINSUPPLIES 1
+SHUTDOWNCMD "/sbin/shutdown -h +0"
+POLLFREQ 5
+POLLFREQALERT 5
+HOSTSYNC 15
+DEADTIME 15
+POWERDOWNFLAG /etc/killpower
+
+# Notification settings
+NOTIFYMSG ONLINE    "UPS %s on line power"
+NOTIFYMSG ONBATT    "UPS %s on battery"
+NOTIFYMSG LOWBATT   "UPS %s battery is low"
+NOTIFYMSG FSD       "UPS %s: forced shutdown in progress"
+NOTIFYMSG COMMOK    "Communications with UPS %s established"
+NOTIFYMSG COMMBAD   "Communications with UPS %s lost"
+NOTIFYMSG SHUTDOWN  "Auto logout and shutdown proceeding"
+NOTIFYMSG REPLBATT  "UPS %s battery needs to be replaced"
+NOTIFYMSG NOCOMM    "UPS %s is unavailable"
+NOTIFYMSG NOPARENT  "upsmon parent process died - shutdown impossible"
+
+# Notification flags
+NOTIFYFLAG ONLINE   SYSLOG+WALL+EXEC
+NOTIFYFLAG ONBATT   SYSLOG+WALL+EXEC
+NOTIFYFLAG LOWBATT  SYSLOG+WALL
+NOTIFYFLAG FSD      SYSLOG+WALL+EXEC
+NOTIFYFLAG COMMOK   SYSLOG+WALL+EXEC
+NOTIFYFLAG COMMBAD  SYSLOG+WALL+EXEC
+NOTIFYFLAG SHUTDOWN SYSLOG+WALL+EXEC
+NOTIFYFLAG REPLBATT SYSLOG+WALL
+NOTIFYFLAG NOCOMM   SYSLOG+WALL+EXEC
+NOTIFYFLAG NOPARENT SYSLOG+WALL
+
+# Run this command when any notification occurs
+NOTIFYCMD /usr/sbin/upssched
+
+# User to run as
+RUN_AS_USER nut

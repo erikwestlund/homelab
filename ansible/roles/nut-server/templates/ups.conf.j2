@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# UPS definitions
+
+{% for ups in ups_devices %}
+[{{ ups.name }}]
+    driver = {{ ups.driver }}
+    port = {{ ups.port }}
+    vendorid = {{ ups.vendorid }}
+    desc = "{{ ups.desc }}"
+{% if ups.productid is defined %}
+    productid = {{ ups.productid }}
+{% endif %}
+{% if ups.serial is defined %}
+    serial = "{{ ups.serial }}"
+{% endif %}
+
+{% endfor %}
