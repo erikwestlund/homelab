@@ -18,10 +18,15 @@ homelab/
 │   ├── pihole/         # Pi-hole DNS configuration
 │   ├── tailscale/      # Tailscale exit node setup
 │   ├── plex/           # Plex media server
-│   └── windows-vms/    # Windows VM configurations
+│   ├── windows-vms/    # Windows VM configurations
+│   ├── peanut/         # PeaNUT web interface for UPS monitoring
+│   └── monitoring-stack/ # InfluxDB + Telegraf + Grafana stack
 ├── ansible/            # Ansible playbooks and roles
 │   ├── inventories/    # Server definitions
 │   ├── roles/          # Service roles
+│   │   ├── common/     # Base system setup
+│   │   ├── nut-server/ # Network UPS Tools configuration
+│   │   └── peanut/     # PeaNUT deployment
 │   └── playbooks/      # Deployment playbooks
 ├── scripts/            # Utility scripts
 │   └── debian12/       # Debian 12 specific scripts
@@ -129,3 +134,100 @@ curl http://localhost:8080  # Test Zigbee2MQTT web UI
 3. Add setup scripts and documentation
 4. Test thoroughly
 5. Deploy with Ansible playbooks
+
+## UPS Monitoring (NUT + PeaNUT)
+
+### Overview
+Network UPS Tools (NUT) server running on dedicated VM (ups-monitor.lan) with PeaNUT web interface for monitoring two CyberPower UPS units.
+
+### UPS Configuration
+- **homelab**: Powers servers and homelab equipment (Serial: CXXPU7012005)
+- **network**: Powers network equipment (Serial: CXXNU7009695)
+
+### Access
+- PeaNUT Web UI: http://ups-monitor.lan:8086
+- NUT Server: ups-monitor.lan:3493
+
+### Ansible Deployment
+```bash
+# Deploy UPS monitoring server
+ansible-playbook -i inventories/homelab.yml playbooks/ups-monitor.yml
+
+# The playbook will:
+# - Install NUT server and configure both UPS devices
+# - Set up PeaNUT web interface
+# - Configure proper USB passthrough permissions
+```
+
+### Manual UPS Commands
+```bash
+# List UPS devices
+upsc -l
+
+# Check UPS status
+upsc homelab@localhost
+upsc network@localhost
+
+# Test from remote host
+upsc homelab@ups-monitor.lan:3493
+```
+
+## Monitoring Stack (InfluxDB + Telegraf + Grafana)
+
+### Overview
+Comprehensive monitoring solution collecting metrics from Docker, system resources, UPS devices, and Home Assistant. Configured for long-term storage (5+ years) with downsampling.
+
+### Components
+- **InfluxDB 2.7**: Time-series database with 5-year retention
+- **Telegraf 1.31**: Metrics collector configured for:
+  - Docker container stats
+  - System metrics (CPU, memory, disk, network)
+  - NUT/UPS monitoring
+  - Home Assistant data via webhook
+- **Grafana 11.1.0**: Visualization with pre-configured dashboards
+
+### Deployment
+```bash
+# Using setup script
+cd /opt/docker/monitoring-stack
+./setup.sh
+docker-compose up -d
+
+# Using Ansible
+ansible-playbook -i inventories/homelab.yml playbooks/deploy-monitoring-stack.yml
+```
+
+### Access
+- Grafana: http://docker-services-host.lan:3000
+- InfluxDB: http://docker-services-host.lan:8086
+- Telegraf HTTP listener: http://docker-services-host.lan:8087
+
+### Home Assistant Integration
+Add to HA configuration.yaml:
+```yaml
+influxdb:
+  api_version: 2
+  ssl: false
+  host: docker-services-host.lan
+  port: 8086
+  token: "YOUR_TOKEN_FROM_ENV"  # Get from monitoring-stack/.env
+  organization: homelab
+  bucket: metrics
+```
+
+### Long-Term Storage
+With 1TB dedicated SSD, capable of storing 15-20+ years of metrics. See `services/monitoring-stack/LONG_TERM_STORAGE.md` for optimization strategies.
+
+## Host Infrastructure
+
+### Servers
+- **nexus.lan**: Primary Proxmox host
+- **hatchery.lan**: Secondary Proxmox host
+- **docker-services-host.lan**: Intel N100 running core services
+- **ups-monitor.lan**: Dedicated VM for UPS monitoring
+- **ha.lan**: Home Assistant VM
+
+### Key Services by Host
+- **docker-services-host**: NUT server, PeaNUT, monitoring stack, nginx proxy manager
+- **ups-monitor**: NUT server with USB passthrough for UPS devices
+- **ha.lan**: Home Assistant with Emporia Vue integration

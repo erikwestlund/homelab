@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  peanut:
+    image: brandawg93/peanut:latest
+    container_name: peanut
+    restart: unless-stopped
+    ports:
+      - "8086:3000"
+    environment:
+      - TZ=America/New_York
+      - NUT_HOST=localhost
+      - NUT_PORT=3493
+      - WEB_HOST=0.0.0.0
+      - WEB_PORT=3000
+    network_mode: host
+    volumes:
+      - peanut_data:/app/data
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  peanut_data:
+    driver: local

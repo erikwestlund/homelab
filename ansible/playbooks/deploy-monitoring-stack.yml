@@ -1,0 +1,110 @@
+---
+- name: Deploy Monitoring Stack
+  hosts: docker-services-host
+  become: yes
+  vars:
+    monitoring_stack_dir: /opt/docker/monitoring-stack
+    
+  tasks:
+    - name: Create monitoring stack directory
+      file:
+        path: "{{ monitoring_stack_dir }}"
+        state: directory
+        mode: '0755'
+        owner: "{{ ansible_user }}"
+        group: "{{ ansible_user }}"
+
+    - name: Copy monitoring stack files
+      synchronize:
+        src: ../../services/monitoring-stack/
+        dest: "{{ monitoring_stack_dir }}"
+        delete: yes
+        recursive: yes
+      become_user: "{{ ansible_user }}"
+
+    - name: Check if .env exists
+      stat:
+        path: "{{ monitoring_stack_dir }}/.env"
+      register: env_file
+
+    - name: Generate secure passwords and token
+      when: not env_file.stat.exists
+      block:
+        - name: Generate InfluxDB password
+          set_fact:
+            influxdb_password: "{{ lookup('password', '/dev/null length=25 chars=ascii_letters,digits') }}"
+            
+        - name: Generate Grafana password
+          set_fact:
+            grafana_password: "{{ lookup('password', '/dev/null length=25 chars=ascii_letters,digits') }}"
+            
+        - name: Generate InfluxDB token
+          set_fact:
+            influxdb_token: "{{ lookup('password', '/dev/null length=48 chars=ascii_letters,digits') }}"
+
+        - name: Create .env from template
+          copy:
+            src: "{{ monitoring_stack_dir }}/.env.example"
+            dest: "{{ monitoring_stack_dir }}/.env"
+            remote_src: yes
+            owner: "{{ ansible_user }}"
+            group: "{{ ansible_user }}"
+            mode: '0600'
+
+        - name: Update .env with generated values
+          replace:
+            path: "{{ monitoring_stack_dir }}/.env"
+            regexp: "{{ item.regexp }}"
+            replace: "{{ item.replace }}"
+          loop:
+            - { regexp: 'changeme123!', replace: '{{ influxdb_password }}' }
+            - { regexp: 'changeme456!', replace: '{{ grafana_password }}' }
+            - { regexp: 'changeme-super-secret-auth-token', replace: '{{ influxdb_token }}' }
+
+        - name: Display generated credentials
+          debug:
+            msg:
+              - "InfluxDB Admin Password: {{ influxdb_password }}"
+              - "Grafana Admin Password: {{ grafana_password }}"
+              - "InfluxDB Token for Home Assistant: {{ influxdb_token }}"
+
+    - name: Set permissions on scripts
+      file:
+        path: "{{ monitoring_stack_dir }}/telegraf/scripts/nut_influx.py"
+        mode: '0755'
+
+    - name: Check if NUT is installed
+      command: which upsc
+      register: nut_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Install NUT client if not present
+      apt:
+        name: nut-client
+        state: present
+      when: nut_check.rc != 0
+
+    - name: Start monitoring stack
+      docker_compose:
+        project_src: "{{ monitoring_stack_dir }}"
+        state: present
+      become_user: "{{ ansible_user }}"
+      
+    - name: Wait for services to be ready
+      wait_for:
+        port: "{{ item.port }}"
+        host: "{{ ansible_default_ipv4.address }}"
+        delay: 10
+        timeout: 60
+      loop:
+        - { name: "InfluxDB", port: 8086 }
+        - { name: "Grafana", port: 3000 }
+
+    - name: Display access information
+      debug:
+        msg:
+          - "Monitoring stack deployed successfully!"
+          - "Grafana: http://{{ ansible_default_ipv4.address }}:3000"
+          - "InfluxDB: http://{{ ansible_default_ipv4.address }}:8086"
+          - "Check {{ monitoring_stack_dir }}/.env for credentials"

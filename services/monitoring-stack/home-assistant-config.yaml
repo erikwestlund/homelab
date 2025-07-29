@@ -1,0 +1,78 @@
+# Home Assistant configuration.yaml additions for InfluxDB integration
+
+# Add this to your configuration.yaml file in Home Assistant
+
+influxdb:
+  api_version: 2
+  ssl: false
+  host: docker-services-host.lan
+  port: 8086
+  token: "changeme-super-secret-auth-token"  # Use the same token from .env
+  organization: homelab
+  bucket: metrics
+  tags:
+    source: home_assistant
+  tags_attributes:
+    - friendly_name
+    - device_class
+    - unit_of_measurement
+  default_measurement: units
+  include:
+    domains:
+      - sensor
+      - binary_sensor
+      - climate
+      - switch
+      - light
+      - device_tracker
+      - person
+    entity_globs:
+      - sensor.*temperature*
+      - sensor.*humidity*
+      - sensor.*power*
+      - sensor.*energy*
+      - sensor.*battery*
+      - sensor.*voltage*
+      - sensor.*current*
+      - sensor.emporia_*
+      - sensor.*_rssi
+      - sensor.*_wifi_signal
+      - binary_sensor.*_occupancy
+      - binary_sensor.*_motion
+    entities:
+      # Add specific entities you want to track
+      # - sensor.living_room_temperature
+      # - sensor.outdoor_temperature
+  exclude:
+    domains:
+      - automation
+      - updater
+      - camera
+      - media_player
+      - group
+      - scene
+      - script
+    entity_globs:
+      - sensor.*_linkquality
+      - sensor.*_unknown
+      - sensor.*last_seen*
+      - sensor.date*
+      - sensor.time*
+      - sensor.sun*
+    entities:
+      # Add specific entities you want to exclude
+      # - sensor.unimportant_sensor
+
+# Optional: Configure recorder to work alongside InfluxDB
+recorder:
+  purge_keep_days: 7  # Keep less data locally since InfluxDB has long-term storage
+  commit_interval: 5
+  exclude:
+    domains:
+      - automation
+      - updater
+      - camera
+      - media_player
+      - group
+      - scene
+      - script
