@@ -1,0 +1,69 @@
+---
+- name: Debug NPM Proxy Issue
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Check NPM container logs
+      command: docker logs nginx-proxy-manager --tail 50
+      register: npm_logs
+
+    - name: Show NPM logs
+      debug:
+        var: npm_logs.stdout_lines
+
+    - name: Test NPM container can reach Portainer
+      command: docker exec nginx-proxy-manager curl -I http://192.168.1.103:9000
+      register: npm_curl_test
+      ignore_errors: yes
+
+    - name: Show curl test result
+      debug:
+        var: npm_curl_test.stdout_lines
+
+    - name: Check NPM network configuration
+      shell: |
+        docker inspect nginx-proxy-manager | jq '.[0].NetworkSettings.Networks'
+      register: npm_networks
+
+    - name: Show NPM networks
+      debug:
+        var: npm_networks.stdout
+
+    - name: Check Portainer network configuration  
+      shell: |
+        docker inspect portainer | jq '.[0].NetworkSettings.Networks'
+      register: portainer_networks
+
+    - name: Show Portainer networks
+      debug:
+        var: portainer_networks.stdout
+
+    - name: Check if containers can communicate
+      shell: |
+        docker exec nginx-proxy-manager ping -c 3 192.168.1.103
+      register: ping_test
+      ignore_errors: yes
+
+    - name: Show ping results
+      debug:
+        var: ping_test.stdout_lines
+
+    - name: Check NPM proxy hosts configuration
+      shell: |
+        docker exec nginx-proxy-manager cat /data/nginx/proxy_host/*.conf | grep -A 5 -B 5 portainer
+      register: proxy_config
+      ignore_errors: yes
+
+    - name: Show proxy configuration
+      debug:
+        var: proxy_config.stdout_lines
+
+    - name: Test DNS resolution in NPM
+      command: docker exec nginx-proxy-manager nslookup portainer.pequod.sh
+      register: dns_test
+      ignore_errors: yes
+
+    - name: Show DNS results
+      debug:
+        var: dns_test.stdout_lines

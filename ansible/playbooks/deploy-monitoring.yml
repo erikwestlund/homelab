@@ -1,0 +1,56 @@
+---
+- name: Deploy Monitoring Stack
+  hosts: docker-services-host
+  become: yes
+  vars_files:
+    - ../secrets.yaml
+    
+  pre_tasks:
+    - name: Check storage volumes are mounted
+      stat:
+        path: "{{ item }}"
+      loop:
+        - /mnt/storage/influxdb
+        - /mnt/storage/grafana
+      register: storage_check
+
+    - name: Fail if storage paths don't exist
+      fail:
+        msg: "Storage path {{ item.item }} does not exist"
+      when: not item.stat.exists
+      loop: "{{ storage_check.results }}"
+  
+  roles:
+    - role: ../roles/monitoring-stack
+
+  post_tasks:
+    - name: Run bucket setup script
+      command: ./scripts/setup-buckets.sh
+      args:
+        chdir: /opt/docker/monitoring-stack
+      register: bucket_setup
+      changed_when: "'already exists' not in bucket_setup.stdout"
+
+    - name: Display setup results
+      debug:
+        var: bucket_setup.stdout_lines
+      when: bucket_setup is changed
+
+    - name: Show access information
+      debug:
+        msg:
+          - "✅ Monitoring stack deployed successfully!"
+          - ""
+          - "Access URLs:"
+          - "  Grafana: https://grafana.pequod.sh (or http://{{ ansible_default_ipv4.address }}:3000)"
+          - "  InfluxDB: http://{{ ansible_default_ipv4.address }}:8086"
+          - ""
+          - "Credentials are in: /opt/docker/monitoring-stack/.env"
+          - ""
+          - "Next steps:"
+          - "1. Login to Grafana and import dashboards:"
+          - "   - System Monitoring: 15141"
+          - "   - UPS Monitoring: 12617"
+          - "   - Energy Monitoring: 16449"
+          - "2. Configure Home Assistant using home-assistant-config.yaml"
+          - "3. Verify data collection: docker logs telegraf"

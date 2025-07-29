@@ -1,0 +1,13 @@
+---
+- name: Include storage setup tasks
+  include_tasks: setup-storage.yml
+  tags: ['storage']
+
+- name: Include deployment tasks
+  include_tasks: deploy.yml
+  tags: ['deploy']
+
+- name: Include bucket creation tasks
+  include_tasks: create-buckets.yml
+  tags: ['buckets']
+  when: monitoring_stack_create_buckets | default(true)

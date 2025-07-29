@@ -1,0 +1,60 @@
+---
+- name: Create Portainer directory
+  file:
+    path: "{{ portainer_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user | default('root') }}"
+    group: "{{ ansible_user | default('root') }}"
+
+- name: Set Portainer admin password
+  set_fact:
+    portainer_admin_password: "{{ portainer.admin_password | default(lookup('password', '/dev/null length=25 chars=ascii_letters,digits')) }}"
+
+- name: Save password to file
+  copy:
+    content: "{{ portainer_admin_password }}"
+    dest: "{{ portainer_dir }}/.portainer_password"
+    mode: '0600'
+    owner: "{{ ansible_user | default('root') }}"
+    group: "{{ ansible_user | default('root') }}"
+  changed_when: false
+
+- name: Display admin password information
+  debug:
+    msg:
+      - "Portainer admin password is stored in:"
+      - "  - File: {{ portainer_dir }}/.portainer_password"
+      - "  - Secrets: ansible/secrets.yaml -> portainer.admin_password"
+      - "{% if portainer.admin_password is not defined or portainer.admin_password == '' %}  - Password was auto-generated, please update secrets.yaml{% endif %}"
+
+- name: Deploy docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ portainer_dir }}/docker-compose.yml"
+    mode: '0644'
+    owner: "{{ ansible_user | default('root') }}"
+    group: "{{ ansible_user | default('root') }}"
+  notify: restart portainer
+
+- name: Ensure Portainer is running
+  community.docker.docker_compose_v2:
+    project_src: "{{ portainer_dir }}"
+    state: present
+
+- name: Wait for Portainer to be ready
+  uri:
+    url: "https://{{ ansible_default_ipv4.address }}:{{ portainer_https_port }}/api/status"
+    validate_certs: no
+  register: portainer_status
+  until: portainer_status.status == 200
+  retries: 30
+  delay: 2
+  ignore_errors: yes
+
+- name: Display Portainer access information
+  debug:
+    msg:
+      - "Portainer is available at: https://{{ ansible_default_ipv4.address }}:{{ portainer_https_port }}"
+      - "Use the admin password from {{ portainer_dir }}/.portainer_password"
+      - "Note: You'll need to create the admin user on first login"

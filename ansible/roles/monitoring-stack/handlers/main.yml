@@ -1,0 +1,23 @@
+---
+- name: restart influxdb
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_dir }}"
+    services: influxdb
+    restarted: yes
+
+- name: restart telegraf
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_dir }}"
+    services: telegraf
+    restarted: yes
+
+- name: restart grafana
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_dir }}"
+    services: grafana
+    restarted: yes
+
+- name: restart monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_dir }}"
+    restarted: yes

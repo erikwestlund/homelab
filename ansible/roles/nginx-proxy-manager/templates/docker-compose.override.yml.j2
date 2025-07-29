@@ -1,0 +1,8 @@
+version: '3.8'
+
+services:
+  nginx-proxy-manager:
+    volumes:
+      - /opt/nginx-proxy-manager/custom-scripts:/custom-scripts:ro
+    # Custom entrypoint to apply Cloudflare configuration
+    entrypoint: ["/bin/sh", "-c", "if [ -f /custom-scripts/nginx-conf-override.sh ]; then sh /custom-scripts/nginx-conf-override.sh & fi; exec /init"]

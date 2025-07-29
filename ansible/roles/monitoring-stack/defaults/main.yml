@@ -1,0 +1,55 @@
+---
+# Monitoring Stack defaults
+monitoring_stack_dir: /opt/docker/monitoring-stack
+
+# Storage paths (should be on dedicated SSD/storage)
+influxdb_data_path: /mnt/storage/influxdb
+grafana_data_path: /mnt/storage/grafana
+
+# Service ports
+influxdb_port: 8087  # Changed from 8086 to avoid conflict with UPS monitoring
+grafana_port: 3001   # Changed from 3000 to avoid conflict with Home Assistant
+
+# InfluxDB settings
+influxdb_org: homelab
+influxdb_initial_bucket: infrastructure
+influxdb_retention: 0  # 0 = infinite retention
+
+# Buckets to create
+influxdb_buckets:
+  - name: infrastructure
+    description: "System and Docker metrics"
+  - name: homeassistant
+    description: "Home Assistant sensor data"
+  - name: ups
+    description: "UPS power and battery metrics"
+  - name: mqtt
+    description: "MQTT sensor data"
+
+# Grafana settings
+grafana_root_url: "https://grafana.pequod.sh"  # Set this to your external URL if using reverse proxy
+grafana_plugins:
+  - grafana-clock-panel
+  - grafana-piechart-panel
+  - vonage-status-panel
+  - yesoreyeram-boomtheme-panel
+
+# Dashboard IDs to pre-download
+grafana_dashboards:
+  - id: 15141
+    name: "Docker and System Monitoring"
+    folder: "Infrastructure"
+  - id: 12617
+    name: "UPS Monitoring"
+    folder: "Power"
+  - id: 16449
+    name: "Home Energy Monitoring"
+    folder: "Energy"
+
+# Container images
+influxdb_image: influxdb:2.7-alpine
+telegraf_image: telegraf:1.31-alpine
+grafana_image: grafana/grafana:11.1.0
+
+# Timezone
+monitoring_timezone: "{{ timezone | default('UTC') }}"

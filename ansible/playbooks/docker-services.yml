@@ -1,0 +1,23 @@
+---
+- name: Deploy Docker Services to docker-services-host
+  hosts: docker-services-host
+  become: yes
+  vars_files:
+    - ../secrets.yaml
+  
+  roles:
+    - { role: common, tags: ['common', 'setup'] }
+    - { role: portainer, tags: ['portainer', 'management'] }
+    - { role: nginx-proxy-manager, tags: ['npm', 'proxy'] }
+    # - { role: monitoring-stack, tags: ['monitoring'] }  # Separate playbook exists
+  
+  tasks:
+    - name: Display deployed services
+      debug:
+        msg:
+          - "Docker services deployed on {{ inventory_hostname }}:"
+          - "- Portainer: https://{{ ansible_default_ipv4.address }}:9443"
+          - "- Nginx Proxy Manager: http://{{ ansible_default_ipv4.address }}:81"
+          - "Use separate playbooks for:"
+          - "  - Monitoring Stack: ansible-playbook playbooks/deploy-monitoring-stack.yml"
+          - "  - Zigbee2MQTT: ansible-playbook playbooks/zigbee-mqtt.yml"

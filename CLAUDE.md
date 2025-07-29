@@ -27,7 +27,8 @@ homelab/
 │   │   ├── common/     # Base system setup
 │   │   ├── nut-server/ # Network UPS Tools configuration
 │   │   └── peanut/     # PeaNUT deployment
-│   └── playbooks/      # Deployment playbooks
+│   ├── playbooks/      # Deployment playbooks
+│   └── secrets.yaml    # Service credentials (not in git)
 ├── scripts/            # Utility scripts
 │   └── debian12/       # Debian 12 specific scripts
 ├── directions/         # Step-by-step guides
@@ -121,6 +122,14 @@ curl http://localhost:8080  # Test Zigbee2MQTT web UI
 - Production-ready configurations go in `deployments/`
 - Use `backups/` for sensitive data that shouldn't be in git
 - Keep deployment files named with their standard names (e.g., `docker-compose.yml`)
+
+### Docker Networking Best Practices
+When configuring services with Docker and reverse proxies (like Nginx Proxy Manager):
+- **Always use container names instead of IP addresses** for inter-container communication
+- **Ensure containers share a Docker network** (e.g., add monitoring containers to `nginx-proxy-manager_default` network)
+- **Use internal container ports, not host-mapped ports** when proxying between containers
+- Example: For Grafana mapped as `3001:3000`, use port `3000` when proxying from another container
+- This approach is more reliable than using host IPs and prevents networking issues
 
 ### Zigbee-MQTT Specific Notes
 - Environment variables in `.env` are used by both docker-compose.yml and passed to containers
@@ -228,6 +237,38 @@ With 1TB dedicated SSD, capable of storing 15-20+ years of metrics. See `service
 - **ha.lan**: Home Assistant VM
 
 ### Key Services by Host
-- **docker-services-host**: NUT server, PeaNUT, monitoring stack, nginx proxy manager
+- **docker-services-host**: NUT server, PeaNUT, monitoring stack, nginx proxy manager, Portainer, Zigbee2MQTT
 - **ups-monitor**: NUT server with USB passthrough for UPS devices
 - **ha.lan**: Home Assistant with Emporia Vue integration
+
+## Credentials Management
+
+ALWAYS use credentials from `/Users/erikwestlund/code/homelab/ansible/secrets.yaml` when deploying services with Ansible. Never generate new passwords if they already exist in secrets.yaml. 
+
+The following services have saved credentials (using hierarchical structure):
+- **npm**: 
+  - admin_email (this is the username!)
+  - admin_password
+  - ssl_email, cloudflare_api_token, additional_allowed_ips
+- **peanut**: password (no username required)
+- **monitoring**: 
+  - influxdb: username, password, token
+  - grafana: username, password
+- **portainer**: admin_password (username chosen during first web login)
+- **plex_claim_token**: (legacy flat structure)
+- **nas**: media_server: host, username, password
+
+### Service Usernames Reference
+- **InfluxDB**: Configurable via `monitoring.influxdb.username` (defaults to 'admin')
+- **Grafana**: Configurable via `monitoring.grafana.username` (defaults to 'admin')
+- **Nginx Proxy Manager**: Uses email as username (`npm.admin_email`)
+- **Portainer**: Choose during first web login
+- **Pi-hole**: No username field, just password
+- **PeaNUT**: No authentication
+- **Proxmox**: Usually 'root'
+
+When deploying services:
+1. Always check secrets.yaml first for existing credentials
+2. Use the exact key names shown above
+3. Never auto-generate passwords if they exist in secrets.yaml
+4. Add new service credentials to secrets.yaml for future deployments

@@ -1,0 +1,44 @@
+---
+- name: Update Telegraf Configuration
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Disable NUT monitoring in Telegraf (no Python in Alpine)
+      replace:
+        path: /opt/docker/monitoring-stack/telegraf/telegraf.conf
+        regexp: '^\[\[inputs\.exec\]\]'
+        replace: '# [[inputs.exec]]'
+
+    - name: Comment out NUT exec lines
+      replace:
+        path: /opt/docker/monitoring-stack/telegraf/telegraf.conf
+        regexp: '^(\s+)(commands|timeout|data_format|interval)(.*)$'
+        replace: '# \1\2\3'
+        after: '# Monitor NUT'
+        before: '# Prepared for future MQTT'
+
+    - name: Restart Telegraf
+      command: docker compose restart telegraf
+      args:
+        chdir: /opt/docker/monitoring-stack
+
+    - name: Wait for Telegraf to restart
+      pause:
+        seconds: 5
+
+    - name: Check Telegraf logs
+      command: docker logs telegraf --tail 20
+      register: telegraf_logs
+
+    - name: Show Telegraf status
+      debug:
+        msg:
+          - "Telegraf restarted with Docker monitoring enabled"
+          - "Note: NUT monitoring disabled (requires Python)"
+          - ""
+          - "Recent logs:"
+        
+    - name: Show logs
+      debug:
+        var: telegraf_logs.stdout_lines

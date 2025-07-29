@@ -1,0 +1,96 @@
+---
+- name: Fix Portainer Network for NPM Access
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Check existing Docker networks
+      command: docker network ls
+      register: networks
+
+    - name: Show networks
+      debug:
+        var: networks.stdout_lines
+
+    - name: Stop Portainer
+      command: docker compose down
+      args:
+        chdir: /opt/docker/portainer
+      ignore_errors: yes
+
+    - name: Update Portainer docker-compose to use external network
+      copy:
+        dest: /opt/docker/portainer/docker-compose.yml
+        content: |
+          # Ansible managed
+          version: '3.8'
+          
+          services:
+            portainer:
+              image: portainer/portainer-ce:latest
+              container_name: portainer
+              restart: unless-stopped
+              ports:
+                - "9443:9443"  # HTTPS Web UI
+                - "9000:9000"  # HTTP Web UI
+                - "8000:8000"  # Edge agent
+              volumes:
+                - /var/run/docker.sock:/var/run/docker.sock
+                - portainer_data:/data
+              environment:
+                - TZ=UTC
+              command: --http-enabled
+              networks:
+                - nginx-proxy-manager_default
+              labels:
+                - "com.centurylinklabs.watchtower.enable=true"
+          
+          volumes:
+            portainer_data:
+              driver: local
+          
+          networks:
+            nginx-proxy-manager_default:
+              external: true
+
+    - name: Start Portainer
+      command: docker compose up -d
+      args:
+        chdir: /opt/docker/portainer
+
+    - name: Wait for Portainer
+      pause:
+        seconds: 5
+
+    - name: Check Portainer network
+      shell: |
+        docker inspect portainer | jq -r '.[0].NetworkSettings.Networks | keys[]'
+      register: portainer_net
+
+    - name: Check NPM network
+      shell: |
+        docker inspect nginx-proxy-manager | jq -r '.[0].NetworkSettings.Networks | keys[]'
+      register: npm_net
+
+    - name: Show network info
+      debug:
+        msg:
+          - "Portainer networks: {{ portainer_net.stdout_lines }}"
+          - "NPM networks: {{ npm_net.stdout_lines }}"
+
+    - name: Test NPM can reach Portainer by container name
+      command: docker exec nginx-proxy-manager ping -c 3 portainer
+      register: ping_test
+      ignore_errors: yes
+
+    - name: Show ping results
+      debug:
+        var: ping_test.stdout_lines
+
+    - name: Update NPM directions
+      debug:
+        msg:
+          - "For NPM proxy configuration use:"
+          - "  Forward Hostname: portainer"
+          - "  Forward Port: 9000"
+          - "  Scheme: http"

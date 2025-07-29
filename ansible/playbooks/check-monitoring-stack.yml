@@ -1,0 +1,75 @@
+---
+- name: Check Monitoring Stack Status
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Check running containers
+      shell: |
+        docker ps --filter name=influxdb --filter name=telegraf --filter name=grafana
+      register: containers
+      changed_when: false
+
+    - name: Show container status
+      debug:
+        var: containers.stdout_lines
+
+    - name: Get InfluxDB admin token
+      shell: |
+        grep INFLUXDB_ADMIN_TOKEN /opt/docker/monitoring-stack/.env | cut -d= -f2
+      register: influx_token
+      changed_when: false
+      no_log: true
+
+    - name: Check InfluxDB health
+      uri:
+        url: http://localhost:8086/health
+        status_code: 200
+      register: influxdb_health
+
+    - name: Show InfluxDB status
+      debug:
+        msg: "InfluxDB is {{ 'healthy' if influxdb_health.status == 200 else 'unhealthy' }}"
+
+    - name: Check Grafana health
+      uri:
+        url: http://localhost:3000/api/health
+        status_code: 200
+      register: grafana_health
+
+    - name: Show Grafana status
+      debug:
+        msg: "Grafana is {{ 'healthy' if grafana_health.status == 200 else 'unhealthy' }}"
+
+    - name: Test Telegraf data collection
+      shell: |
+        docker logs telegraf --tail 20 2>&1 | grep -E "(Connected to|Writing to|Error)" || echo "No recent log entries"
+      register: telegraf_logs
+      changed_when: false
+
+    - name: Show Telegraf status
+      debug:
+        var: telegraf_logs.stdout_lines
+
+    - name: Create InfluxDB buckets
+      shell: |
+        cd /opt/docker/monitoring-stack
+        ./scripts/setup-buckets.sh
+      register: bucket_setup
+      changed_when: "'successfully' in bucket_setup.stdout"
+
+    - name: Show bucket creation results
+      debug:
+        var: bucket_setup.stdout_lines
+
+    - name: Access information
+      debug:
+        msg:
+          - "✅ Monitoring stack is running!"
+          - ""
+          - "Access URLs:"
+          - "  Grafana: https://grafana.pequod.sh (or http://{{ ansible_default_ipv4.address }}:3000)"
+          - "  InfluxDB: http://{{ ansible_default_ipv4.address }}:8086"
+          - ""
+          - "To get credentials:"
+          - "  cat /opt/docker/monitoring-stack/.env"

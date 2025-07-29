@@ -1,0 +1,13 @@
+---
+# Portainer default configuration
+portainer_dir: /opt/docker/portainer
+portainer_https_port: 9443
+portainer_edge_port: 8000
+portainer_data_volume: portainer_data
+
+# Container settings
+portainer_image: portainer/portainer-ce:latest
+portainer_container_name: portainer
+
+# Security
+portainer_http_disabled: true

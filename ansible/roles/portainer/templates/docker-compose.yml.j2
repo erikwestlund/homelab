@@ -1,0 +1,31 @@
+# {{ ansible_managed }}
+version: '3.8'
+
+services:
+  {{ portainer_container_name }}:
+    image: {{ portainer_image }}
+    container_name: {{ portainer_container_name }}
+    restart: unless-stopped
+    ports:
+      - "{{ portainer_https_port }}:9443"
+      - "{{ portainer_edge_port }}:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - {{ portainer_data_volume }}:/data
+    environment:
+      - TZ={{ ansible_date_time.tz }}
+{% if portainer_http_disabled %}
+    command: --http-disabled
+{% endif %}
+    networks:
+      - portainer_net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  {{ portainer_data_volume }}:
+    driver: local
+
+networks:
+  portainer_net:
+    driver: bridge

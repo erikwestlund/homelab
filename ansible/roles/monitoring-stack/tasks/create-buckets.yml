@@ -1,0 +1,48 @@
+---
+- name: Load environment variables
+  include_vars: "{{ monitoring_stack_dir }}/.env"
+  no_log: true
+
+- name: Wait for InfluxDB API to be ready
+  uri:
+    url: "http://localhost:{{ influxdb_port }}/api/v2/ping"
+    status_code: 204
+  register: api_ping
+  until: api_ping.status == 204
+  retries: 10
+  delay: 5
+
+- name: Check existing buckets
+  uri:
+    url: "http://localhost:{{ influxdb_port }}/api/v2/buckets"
+    method: GET
+    headers:
+      Authorization: "Token {{ influxdb_admin_token }}"
+    status_code: 200
+  register: existing_buckets
+  no_log: true
+
+- name: Create additional buckets
+  uri:
+    url: "http://localhost:{{ influxdb_port }}/api/v2/buckets"
+    method: POST
+    headers:
+      Authorization: "Token {{ influxdb_admin_token }}"
+      Content-Type: "application/json"
+    body_format: json
+    body:
+      name: "{{ item.name }}"
+      description: "{{ item.description }}"
+      orgID: "{{ existing_buckets.json.buckets[0].orgID }}"
+      retentionRules: []  # No retention = infinite
+    status_code: [201, 422]  # 422 = already exists
+  loop: "{{ influxdb_buckets }}"
+  when: item.name not in existing_buckets.json.buckets | map(attribute='name') | list
+  no_log: true
+
+- name: Display bucket information
+  debug:
+    msg:
+      - "InfluxDB buckets configured:"
+      - "{{ influxdb_buckets | map(attribute='name') | list | join(', ') }}"
+      - "All buckets have infinite retention (data kept forever)"

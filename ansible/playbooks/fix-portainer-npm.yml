@@ -1,0 +1,54 @@
+---
+- name: Fix Portainer for NPM Access
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Check current Portainer container status
+      community.docker.docker_container_info:
+        name: portainer
+      register: portainer_info
+      ignore_errors: yes
+
+    - name: Stop Portainer if running
+      community.docker.docker_compose_v2:
+        project_src: /opt/docker/portainer
+        state: absent
+      when: portainer_info.exists | default(false)
+    
+    - name: Update docker-compose.yml to enable HTTP
+      replace:
+        path: /opt/docker/portainer/docker-compose.yml
+        regexp: 'command: --http-disabled'
+        replace: 'command: --http-enabled'
+    
+    - name: Add HTTP port 9000 to docker-compose.yml
+      lineinfile:
+        path: /opt/docker/portainer/docker-compose.yml
+        line: '      - "9000:9000"  # HTTP Web UI'
+        insertafter: '^\s*- "9443:9443"'
+        regexp: '^\s*- "9000:9000"'
+    
+    - name: Start Portainer with HTTP enabled
+      community.docker.docker_compose_v2:
+        project_src: /opt/docker/portainer
+        state: present
+    
+    - name: Wait for Portainer HTTP to be ready
+      wait_for:
+        port: 9000
+        host: localhost
+        delay: 5
+        timeout: 30
+    
+    - name: Display status
+      debug:
+        msg:
+          - "Portainer is now accessible via:"
+          - "  - HTTPS: https://{{ ansible_default_ipv4.address }}:9443"
+          - "  - HTTP: http://{{ ansible_default_ipv4.address }}:9000"
+          - ""
+          - "NPM should now work with:"
+          - "  - Forward to: 192.168.1.103"
+          - "  - Port: 9000"
+          - "  - Scheme: http"

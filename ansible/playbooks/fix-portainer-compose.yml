@@ -1,0 +1,72 @@
+---
+- name: Fix Portainer Docker Compose
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Create proper docker-compose.yml for Portainer
+      copy:
+        dest: /opt/docker/portainer/docker-compose.yml
+        content: |
+          # Ansible managed
+          version: '3.8'
+          
+          services:
+            portainer:
+              image: portainer/portainer-ce:latest
+              container_name: portainer
+              restart: unless-stopped
+              ports:
+                - "9443:9443"  # HTTPS Web UI
+                - "9000:9000"  # HTTP Web UI
+                - "8000:8000"  # Edge agent
+              volumes:
+                - /var/run/docker.sock:/var/run/docker.sock
+                - portainer_data:/data
+              environment:
+                - TZ=UTC
+              command: --http-enabled
+              networks:
+                - portainer_net
+              labels:
+                - "com.centurylinklabs.watchtower.enable=true"
+          
+          volumes:
+            portainer_data:
+              driver: local
+          
+          networks:
+            portainer_net:
+              driver: bridge
+    
+    - name: Start Portainer
+      command: docker compose up -d
+      args:
+        chdir: /opt/docker/portainer
+
+    - name: Wait for services
+      pause:
+        seconds: 10
+
+    - name: Check Portainer status
+      shell: |
+        docker ps --filter name=portainer
+      register: status
+
+    - name: Show status
+      debug:
+        var: status.stdout_lines
+
+    - name: Test HTTP port
+      uri:
+        url: "http://localhost:9000"
+        method: GET
+        status_code: [200, 302]
+      register: http_test
+      ignore_errors: yes
+
+    - name: Show results
+      debug:
+        msg:
+          - "HTTP Port 9000: {{ 'Working' if http_test.status is defined else 'Not working' }}"
+          - "Access via NPM: Use http://192.168.1.103:9000"

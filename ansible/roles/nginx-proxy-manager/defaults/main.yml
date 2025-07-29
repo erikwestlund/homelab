@@ -133,6 +133,38 @@ npm_services:
       proxy_set_header X-Plex-Device-Vendor $http_x_plex_device_vendor;
       proxy_set_header X-Plex-Model $http_x_plex_model;
 
+  - name: "Grafana"
+    domain: "grafana.pequod.sh"
+    forward_host: "192.168.1.103"
+    forward_port: 3000
+    forward_scheme: "http"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # Grafana specific settings
+      proxy_set_header Host $http_host;
+
+  - name: "InfluxDB"
+    domain: "influxdb.pequod.sh"
+    forward_host: "192.168.1.103"
+    forward_port: 8086
+    forward_scheme: "http"
+    ssl_forced: true
+    block_exploits: true
+    access_list_id: "local_only"
+
+  - name: "PeaNUT UPS Monitor"
+    domain: "ups.pequod.sh"
+    forward_host: "192.168.1.15"
+    forward_port: 8086
+    forward_scheme: "http"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+
   - name: "Zigbee2MQTT"
     domain: "mqtt.pequod.sh"
     forward_host: "192.168.1.103"
@@ -142,6 +174,20 @@ npm_services:
     websockets_support: true
     block_exploits: true
     access_list_id: "local_only"
+    
+  - name: "Portainer"
+    domain: "portainer.pequod.sh"
+    forward_host: "192.168.1.103"
+    forward_port: 9000
+    forward_scheme: "http"
+    ssl_forced: true
+    websockets_support: true
+    block_exploits: true
+    access_list_id: "local_only"
+    advanced_config: |
+      # Portainer specific settings
+      proxy_set_header Upgrade $http_upgrade;
+      proxy_set_header Connection "upgrade";
     
   - name: "GLKVM"
     domain: "kvm.pequod.sh"

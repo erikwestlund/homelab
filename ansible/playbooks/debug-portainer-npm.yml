@@ -1,0 +1,68 @@
+---
+- name: Debug Portainer NPM Access
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Check Portainer container status
+      shell: docker ps -a --filter name=portainer --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      register: portainer_status
+
+    - name: Show Portainer status
+      debug:
+        var: portainer_status.stdout_lines
+
+    - name: Test Portainer HTTP access locally
+      uri:
+        url: "http://localhost:9000"
+        method: GET
+        status_code: [200, 302]
+        timeout: 5
+      register: portainer_http_test
+      ignore_errors: yes
+
+    - name: Show HTTP test result
+      debug:
+        msg: "Portainer HTTP test: {{ 'SUCCESS' if portainer_http_test.status is defined else 'FAILED' }}"
+
+    - name: Check Portainer logs
+      command: docker logs portainer --tail 20
+      register: portainer_logs
+
+    - name: Show Portainer logs
+      debug:
+        var: portainer_logs.stdout_lines
+
+    - name: Check NPM container status
+      shell: docker ps -a --filter name=nginx-proxy-manager --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+      register: npm_status
+
+    - name: Show NPM status
+      debug:
+        var: npm_status.stdout_lines
+
+    - name: Test NPM access to Portainer
+      command: docker exec nginx-proxy-manager curl -s -o /dev/null -w "%{http_code}" http://192.168.1.103:9000
+      register: npm_curl_test
+      ignore_errors: yes
+
+    - name: Show NPM curl test
+      debug:
+        msg: "NPM to Portainer test returned HTTP code: {{ npm_curl_test.stdout | default('FAILED') }}"
+
+    - name: Check UFW status
+      command: ufw status numbered
+      register: ufw_status
+
+    - name: Show relevant UFW rules
+      debug:
+        msg: "{{ ufw_status.stdout_lines | select('match', '.*(9000|9443|portainer).*') | list }}"
+
+    - name: Check if Portainer is listening on port 9000
+      command: netstat -tlnp | grep 9000
+      register: netstat_check
+      ignore_errors: yes
+
+    - name: Show port listening status
+      debug:
+        var: netstat_check.stdout_lines

@@ -1,0 +1,66 @@
+---
+- name: Restart Portainer with HTTP enabled
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Stop Portainer container
+      command: docker stop portainer
+      ignore_errors: yes
+
+    - name: Remove Portainer container
+      command: docker rm portainer
+      ignore_errors: yes
+
+    - name: Check current docker-compose.yml
+      command: cat /opt/docker/portainer/docker-compose.yml
+      register: compose_content
+
+    - name: Show current config
+      debug:
+        var: compose_content.stdout_lines
+
+    - name: Ensure HTTP is enabled in docker-compose.yml
+      replace:
+        path: /opt/docker/portainer/docker-compose.yml
+        regexp: 'command:.*$'
+        replace: 'command: --http-enabled'
+
+    - name: Ensure port 9000 is in docker-compose.yml
+      blockinfile:
+        path: /opt/docker/portainer/docker-compose.yml
+        insertafter: '- "9443:9443"'
+        block: |
+          - "9000:9000"  # HTTP Web UI
+        marker: "      # {mark} ANSIBLE MANAGED BLOCK - HTTP PORT"
+
+    - name: Start Portainer with docker compose
+      command: docker compose up -d
+      args:
+        chdir: /opt/docker/portainer
+
+    - name: Wait for Portainer to start
+      pause:
+        seconds: 10
+
+    - name: Check Portainer is running
+      command: docker ps --filter name=portainer
+      register: portainer_check
+
+    - name: Show Portainer status
+      debug:
+        var: portainer_check.stdout_lines
+
+    - name: Test HTTP access
+      uri:
+        url: "http://localhost:9000"
+        method: GET
+        status_code: [200, 302]
+      register: http_test
+      ignore_errors: yes
+
+    - name: Show access test results
+      debug:
+        msg: 
+          - "HTTP (9000): {{ 'Working' if http_test.status is defined else 'Not working' }}"
+          - "Access Portainer at: http://192.168.1.103:9000"

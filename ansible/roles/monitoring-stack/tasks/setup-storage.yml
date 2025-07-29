@@ -1,0 +1,36 @@
+---
+- name: Check if storage paths exist
+  stat:
+    path: "{{ item }}"
+  loop:
+    - "{{ influxdb_data_path }}"
+    - "{{ grafana_data_path }}"
+  register: storage_paths
+
+- name: Fail if storage paths don't exist
+  fail:
+    msg: "Storage path {{ item.item }} does not exist. Please create it first."
+  when: not item.stat.exists
+  loop: "{{ storage_paths.results }}"
+
+- name: Set correct permissions for storage directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user | default('root') }}"
+    group: "{{ ansible_user | default('root') }}"
+  loop:
+    - "{{ influxdb_data_path }}"
+    - "{{ grafana_data_path }}"
+
+- name: Check available storage space
+  shell: |
+    df -BG {{ influxdb_data_path }} | tail -1 | awk '{print $4}' | sed 's/G//'
+  register: available_space
+  changed_when: false
+
+- name: Warn if less than 100GB available
+  debug:
+    msg: "WARNING: Only {{ available_space.stdout }}GB available on storage volume. Recommend at least 100GB for long-term storage."
+  when: available_space.stdout|int < 100

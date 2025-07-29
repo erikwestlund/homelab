@@ -1,0 +1,40 @@
+---
+- name: Fix Telegraf Permissions
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Get docker group GID
+      shell: "getent group docker | cut -d: -f3"
+      register: docker_gid
+      changed_when: false
+
+    - name: Update Telegraf docker-compose to use docker group
+      replace:
+        path: /opt/docker/monitoring-stack/docker-compose.yml
+        regexp: 'user: telegraf:999'
+        replace: 'user: telegraf:{{ docker_gid.stdout }}'
+
+    - name: Restart Telegraf with correct permissions
+      command: docker compose restart telegraf
+      args:
+        chdir: /opt/docker/monitoring-stack
+
+    - name: Install python3 in Telegraf container for NUT script
+      community.docker.docker_container_exec:
+        container: telegraf
+        command: /bin/sh -c "apk add --no-cache python3"
+      register: python_install
+
+    - name: Check if NUT tools are available on host
+      command: which upsc
+      register: nut_check
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Show status
+      debug:
+        msg:
+          - "Docker GID: {{ docker_gid.stdout }}"
+          - "Python3 installed in Telegraf: {{ 'Success' if python_install.rc == 0 else 'Failed' }}"
+          - "NUT available on host: {{ 'Yes' if nut_check.rc == 0 else 'No' }}"

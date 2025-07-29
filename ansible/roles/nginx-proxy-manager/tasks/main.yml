@@ -59,12 +59,27 @@
     - "{{ npm_data_dir }}"
     - "{{ npm_db_dir }}"
     - "{{ npm_letsencrypt_dir }}"
+    - "{{ npm_data_dir }}/custom-scripts"
+
+- name: Copy Cloudflare real IP script
+  copy:
+    src: nginx-conf-override.sh
+    dest: "{{ npm_data_dir }}/custom-scripts/nginx-conf-override.sh"
+    mode: '0755'
+  when: npm_use_cloudflare | default(true)
 
 - name: Copy docker-compose file
   template:
     src: docker-compose.yml.j2
     dest: "{{ npm_data_dir }}/docker-compose.yml"
     mode: '0644'
+
+- name: Copy docker-compose override for Cloudflare
+  template:
+    src: docker-compose.override.yml.j2
+    dest: "{{ npm_data_dir }}/docker-compose.override.yml"
+    mode: '0644'
+  when: npm_use_cloudflare | default(true)
 
 - name: Start Nginx Proxy Manager
   shell: |

@@ -1,0 +1,24 @@
+---
+- name: Deploy Portainer Container Management
+  hosts: docker-services-host
+  become: yes
+  vars_files:
+    - ../secrets.yaml
+  
+  roles:
+    - portainer
+  
+  tasks:
+    - name: Check Docker service status
+      systemd:
+        name: docker
+        state: started
+      register: docker_status
+    
+    - name: Display deployment summary
+      debug:
+        msg:
+          - "Portainer deployed successfully!"
+          - "Access URL: https://{{ ansible_default_ipv4.address }}:9443"
+          - "Container: {{ portainer_container_name | default('portainer') }}"
+          - "Data stored in: {{ portainer_dir | default('/opt/docker/portainer') }}"

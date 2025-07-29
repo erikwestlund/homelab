@@ -2,8 +2,25 @@
 - name: Deploy Monitoring Stack
   hosts: docker-services-host
   become: yes
+  vars_files:
+    - ../secrets.yaml
   vars:
     monitoring_stack_dir: /opt/docker/monitoring-stack
+  
+  pre_tasks:
+    - name: Check storage volumes are mounted
+      stat:
+        path: "{{ item }}"
+      loop:
+        - /mnt/storage/influxdb
+        - /mnt/storage/grafana
+      register: storage_check
+
+    - name: Fail if storage paths don't exist
+      fail:
+        msg: "Storage path {{ item.item }} does not exist"
+      when: not item.stat.exists
+      loop: "{{ storage_check.results }}"
     
   tasks:
     - name: Create monitoring stack directory
@@ -11,8 +28,8 @@
         path: "{{ monitoring_stack_dir }}"
         state: directory
         mode: '0755'
-        owner: "{{ ansible_user }}"
-        group: "{{ ansible_user }}"
+        owner: "{{ ansible_user | default('root') }}"
+        group: "{{ ansible_user | default('root') }}"
 
     - name: Copy monitoring stack files
       synchronize:
@@ -20,7 +37,7 @@
         dest: "{{ monitoring_stack_dir }}"
         delete: yes
         recursive: yes
-      become_user: "{{ ansible_user }}"
+      become_user: "{{ ansible_user | default('root') }}"
 
     - name: Check if .env exists
       stat:
@@ -86,10 +103,10 @@
       when: nut_check.rc != 0
 
     - name: Start monitoring stack
-      docker_compose:
+      community.docker.docker_compose_v2:
         project_src: "{{ monitoring_stack_dir }}"
         state: present
-      become_user: "{{ ansible_user }}"
+      become_user: "{{ ansible_user | default('root') }}"
       
     - name: Wait for services to be ready
       wait_for:

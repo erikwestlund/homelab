@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "9443:9443"  # HTTPS Web UI
+      - "8000:8000"  # Edge agent (optional)
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    environment:
+      - TZ=America/New_York
+    command: --http-disabled
+    networks:
+      - portainer_net
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+volumes:
+  portainer_data:
+    driver: local
+
+networks:
+  portainer_net:
+    driver: bridge

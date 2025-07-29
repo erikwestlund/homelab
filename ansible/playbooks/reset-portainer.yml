@@ -1,0 +1,36 @@
+---
+- name: Reset Portainer Installation
+  hosts: docker-services-host
+  become: yes
+  
+  tasks:
+    - name: Stop Portainer
+      community.docker.docker_compose_v2:
+        project_src: /opt/docker/portainer
+        state: absent
+      ignore_errors: yes
+    
+    - name: Remove Portainer data volume
+      docker_volume:
+        name: portainer_portainer_data
+        state: absent
+      ignore_errors: yes
+    
+    - name: Remove any existing Portainer data
+      file:
+        path: /opt/docker/portainer/data
+        state: absent
+      ignore_errors: yes
+    
+    - name: Redeploy Portainer
+      include_role:
+        name: portainer
+    
+    - name: Important instructions
+      debug:
+        msg:
+          - "Portainer has been reset!"
+          - "1. Go to https://{{ ansible_default_ipv4.address }}:9443"
+          - "2. Create admin user with password from secrets"
+          - "3. Click 'Get Started' to connect local Docker"
+          - "4. Make sure to select 'Docker' environment type"

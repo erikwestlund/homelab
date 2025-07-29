@@ -1,0 +1,126 @@
+---
+- name: Create monitoring stack directory
+  file:
+    path: "{{ monitoring_stack_dir }}"
+    state: directory
+    mode: '0755'
+    owner: "{{ ansible_user | default('root') }}"
+
+- name: Create subdirectories
+  file:
+    path: "{{ monitoring_stack_dir }}/{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - telegraf
+    - telegraf/scripts
+    - grafana/provisioning/dashboards
+    - grafana/provisioning/datasources
+    - scripts
+    - influxdb-config
+
+- name: Set credentials from variables if provided
+  set_fact:
+    influxdb_admin_username: "{{ monitoring.influxdb.username | default('admin') }}"
+    influxdb_admin_password: "{{ monitoring.influxdb.password }}"
+    influxdb_admin_token: "{{ monitoring.influxdb.token }}"
+    grafana_admin_username: "{{ monitoring.grafana.username | default('admin') }}"
+    grafana_admin_password: "{{ monitoring.grafana.password }}"
+  when: 
+    - monitoring is defined
+    - monitoring.influxdb is defined
+    - monitoring.influxdb.password is defined
+    - monitoring.grafana is defined
+    - monitoring.grafana.password is defined
+
+- name: Set default usernames when not provided
+  set_fact:
+    influxdb_admin_username: "{{ influxdb_admin_username | default('admin') }}"
+    grafana_admin_username: "{{ grafana_admin_username | default('admin') }}"
+  when: influxdb_admin_username is not defined or grafana_admin_username is not defined
+
+- name: Generate passwords when not provided
+  set_fact:
+    influxdb_admin_password: "{{ lookup('password', '/tmp/ansible_influxdb_password chars=ascii_letters,digits length=25') }}"
+    grafana_admin_password: "{{ lookup('password', '/tmp/ansible_grafana_password chars=ascii_letters,digits length=25') }}"
+    influxdb_admin_token: "{{ lookup('password', '/tmp/ansible_influxdb_token chars=ascii_letters,digits length=48') }}"
+  when: influxdb_admin_password is not defined
+
+- name: Create .env file
+  template:
+    src: env.j2
+    dest: "{{ monitoring_stack_dir }}/.env"
+    mode: '0600'
+    owner: "{{ ansible_user | default('root') }}"
+  no_log: true
+
+- name: Copy docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ monitoring_stack_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Copy Telegraf configuration
+  template:
+    src: telegraf.conf.j2
+    dest: "{{ monitoring_stack_dir }}/telegraf/telegraf.conf"
+    mode: '0644'
+
+- name: Copy NUT metrics script
+  copy:
+    src: nut_influx.py
+    dest: "{{ monitoring_stack_dir }}/telegraf/scripts/nut_influx.py"
+    mode: '0755'
+
+- name: Create Grafana datasource provisioning
+  template:
+    src: grafana-datasource.yml.j2
+    dest: "{{ monitoring_stack_dir }}/grafana/provisioning/datasources/influxdb.yml"
+    mode: '0644'
+
+- name: Create Grafana dashboard provisioning
+  template:
+    src: grafana-dashboards.yml.j2
+    dest: "{{ monitoring_stack_dir }}/grafana/provisioning/dashboards/default.yml"
+    mode: '0644'
+
+- name: Copy setup scripts
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ monitoring_stack_dir }}/scripts/{{ item }}"
+    mode: '0755'
+  loop:
+    - setup-buckets.sh
+
+- name: Copy documentation
+  copy:
+    src: "{{ item }}"
+    dest: "{{ monitoring_stack_dir }}/{{ item }}"
+    mode: '0644'
+  loop:
+    - README.md
+    - DEPLOYMENT.md
+    - home-assistant-config.yaml
+  ignore_errors: yes
+
+- name: Start monitoring stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ monitoring_stack_dir }}"
+    state: present
+
+- name: Wait for InfluxDB to be ready
+  uri:
+    url: "http://localhost:{{ influxdb_port }}/health"
+    status_code: 200
+  register: influxdb_health
+  until: influxdb_health.status == 200
+  retries: 30
+  delay: 5
+
+- name: Display access information
+  debug:
+    msg:
+      - "Monitoring stack deployed successfully!"
+      - "Access Grafana at: http://{{ ansible_default_ipv4.address }}:{{ grafana_port }}"
+      - "Access InfluxDB at: http://{{ ansible_default_ipv4.address }}:{{ influxdb_port }}"
+      - "Credentials are stored in: {{ monitoring_stack_dir }}/.env"

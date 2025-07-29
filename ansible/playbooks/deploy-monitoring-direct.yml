@@ -1,0 +1,11 @@
+---
+- name: Deploy Monitoring Stack Direct
+  hosts: docker-services-host
+  become: yes
+  vars_files:
+    - /Users/erikwestlund/code/homelab/ansible/secrets.yaml
+  
+  tasks:
+    - name: Include monitoring-stack role
+      include_role:
+        name: monitoring-stack
