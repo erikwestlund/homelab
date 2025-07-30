@@ -1,0 +1,57 @@
+# Home Assistant InfluxDB 2.x configuration
+# Add this to your Home Assistant configuration.yaml
+
+influxdb:
+  api_version: 2
+  ssl: false
+  host: docker-services-host.lan
+  port: 8087
+  token: "***REMOVED***"
+  organization: "homelab"
+  bucket: "home_assistant"
+  tags:
+    source: home_assistant
+  tags_attributes:
+    - friendly_name
+  default_measurement: state
+  # Only include specific entities
+  include:
+    entities:
+      - sensor.current_nws_outdoor_temperature
+  # Exclude all domains by default since we're being selective
+  exclude:
+    domains:
+      - automation
+      - binary_sensor
+      - button
+      - camera
+      - climate
+      - cover
+      - device_tracker
+      - fan
+      - group
+      - humidifier
+      - input_boolean
+      - input_button
+      - input_datetime
+      - input_number
+      - input_select
+      - input_text
+      - light
+      - lock
+      - media_player
+      - number
+      - person
+      - remote
+      - scene
+      - script
+      - select
+      - siren
+      - sun
+      - switch
+      - timer
+      - update
+      - vacuum
+      - water_heater
+      - weather
+      - zone
