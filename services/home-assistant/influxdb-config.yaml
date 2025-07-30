@@ -6,7 +6,7 @@ influxdb:
   ssl: false
   host: docker-services-host.lan
   port: 8087
-  token: "***REMOVED***"
+  token: "YOUR_INFLUXDB_TOKEN"  # Get from ansible/secrets.yaml
   organization: "homelab"
   bucket: "home_assistant"
   tags:

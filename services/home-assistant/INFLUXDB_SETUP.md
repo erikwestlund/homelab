@@ -20,7 +20,7 @@ influxdb:
   ssl: false
   host: docker-services-host.lan
   port: 8087
-  token: "***REMOVED***"
+  token: "YOUR_INFLUXDB_TOKEN"  # Get from ansible/secrets.yaml
   organization: "homelab"
   bucket: "home_assistant"
   tags:
@@ -53,7 +53,7 @@ Check if data is flowing to InfluxDB:
 ```bash
 # Query the bucket for temperature data
 curl -X POST "http://docker-services-host.lan:8087/api/v2/query?org=homelab" \
-  -H "Authorization: Token ***REMOVED***" \
+  -H "Authorization: Token YOUR_INFLUXDB_TOKEN" \
   -H "Content-Type: application/vnd.flux" \
   -d 'from(bucket: "home_assistant")
   |> range(start: -1h)
