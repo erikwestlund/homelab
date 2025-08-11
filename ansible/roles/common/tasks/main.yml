@@ -27,6 +27,7 @@
 - name: Install essential packages
   apt:
     name:
+      - sudo
       - apt-transport-https
       - ca-certificates
       - curl
