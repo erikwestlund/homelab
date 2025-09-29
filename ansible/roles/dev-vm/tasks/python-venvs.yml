@@ -1,0 +1,76 @@
+---
+# Set up Python virtual environments for projects
+
+- name: Create Python virtual environment for parkukb
+  become: yes
+  become_user: "{{ dev_user }}"
+  command: python3 -m venv "{{ dev_home }}/code/parkukb/venv"
+  args:
+    creates: "{{ dev_home }}/code/parkukb/venv"
+  when:
+    - '"erikwestlund/parkukb" in (github_repos | map(attribute="repo") | list)'
+
+- name: Check if parkukb requirements.txt exists
+  stat:
+    path: "{{ dev_home }}/code/parkukb/requirements.txt"
+  register: parkukb_requirements
+
+- name: Install parkukb requirements if file exists
+  become: yes
+  become_user: "{{ dev_user }}"
+  pip:
+    requirements: "{{ dev_home }}/code/parkukb/requirements.txt"
+    virtualenv: "{{ dev_home }}/code/parkukb/venv"
+    virtualenv_command: python3 -m venv
+  when:
+    - parkukb_requirements.stat.exists
+    - '"erikwestlund/parkukb" in (github_repos | map(attribute="repo") | list)'
+
+- name: Create helper script for parkukb venv
+  copy:
+    content: |
+      #!/bin/bash
+      # Helper script to activate parkukb virtual environment
+
+      if [ -d "$HOME/code/parkukb/venv" ]; then
+          source "$HOME/code/parkukb/venv/bin/activate"
+          echo "✓ Activated parkukb virtual environment"
+          echo "  Python: $(which python)"
+          echo "  Pip: $(which pip)"
+      else
+          echo "❌ Virtual environment not found at $HOME/code/parkukb/venv"
+          echo "   Run 'python3 -m venv $HOME/code/parkukb/venv' to create it"
+      fi
+    dest: "{{ dev_home }}/bin/activate-parkukb"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Create alias for parkukb activation
+  lineinfile:
+    path: "{{ dev_home }}/.{{ item }}"
+    line: 'alias parkukb="cd ~/code/parkukb && source venv/bin/activate"'
+    state: present
+    create: yes
+  loop:
+    - bashrc
+    - zshrc
+  when: configure_shell | bool
+
+- name: Display virtual environment information
+  debug:
+    msg: |
+      Python virtual environment setup for parkukb:
+
+      Location: {{ dev_home }}/code/parkukb/venv
+
+      To activate:
+        Option 1: cd ~/code/parkukb && source venv/bin/activate
+        Option 2: source ~/bin/activate-parkukb
+        Option 3: Use alias 'parkukb' (changes to project directory and activates venv)
+
+      To install additional packages:
+        pip install <package-name>
+
+      To save requirements:
+        pip freeze > requirements.txt

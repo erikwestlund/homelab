@@ -66,6 +66,13 @@
     - repos
     - git
 
+- name: Set up Python virtual environments
+  include_tasks: python-venvs.yml
+  tags:
+    - python
+    - venv
+    - parkukb
+
 - name: Install Claude Code and zen MCP tools
   include_tasks: claude-tools.yml
   tags:

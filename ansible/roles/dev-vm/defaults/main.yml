@@ -132,6 +132,7 @@ swap_size_gb: 8
 github_repos:
   - { repo: "erikwestlund/homelab" }
   - { repo: "erikwestlund/dotfiles" }
+  - { repo: "erikwestlund/parkukb" }
   - { repo: "jhbiostatcenter/naaccord-data-depot" }
   - { repo: "jhbiostatcenter/naaccord-r-tools" }
   - { repo: "letsrun/better-shoes" }

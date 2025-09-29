@@ -72,6 +72,9 @@ ansible-playbook -i inventories/homelab.yml playbooks/common-setup.yml
 
 ### Service Deployment
 ```bash
+# Development VM Setup
+ansible-playbook -i inventories/homelab.yml playbooks/setup-dev-vm.yml
+
 # UPS Monitoring (NUT + PeaNUT)
 ansible-playbook -i inventories/homelab.yml playbooks/ups-monitor.yml
 
