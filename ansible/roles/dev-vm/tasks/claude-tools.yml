@@ -1,0 +1,132 @@
+---
+# Install Claude Code and zen MCP server dependencies
+
+- name: Install uv (Python package manager)
+  shell: |
+    echo "Installing uv..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    echo "uv installation completed"
+    ls -la {{ dev_home }}/.cargo/bin/ || echo "Cargo bin directory not found"
+  become: yes
+  become_user: "{{ dev_user }}"
+  args:
+    executable: /bin/bash
+  register: uv_install_result
+
+- name: Debug uv installation
+  debug:
+    msg: "{{ uv_install_result.stdout_lines }}"
+
+- name: Add uv to PATH
+  lineinfile:
+    path: "{{ dev_home }}/.profile"
+    line: 'export PATH="$HOME/.cargo/bin:$PATH"'
+    state: present
+    create: yes
+
+- name: Check if uv was installed
+  stat:
+    path: "{{ dev_home }}/.cargo/bin/uv"
+  register: uv_exists
+
+- name: Install uvx via uv (if uv exists)
+  shell: |
+    export PATH="{{ dev_home }}/.cargo/bin:$PATH"
+    {{ dev_home }}/.cargo/bin/uv tool install uvx
+  become: yes
+  become_user: "{{ dev_user }}"
+  args:
+    creates: "{{ dev_home }}/.local/bin/uvx"
+    executable: /bin/bash
+  when: uv_exists.stat.exists
+  ignore_errors: yes
+
+- name: Install uvx directly via pipx if uv failed
+  shell: |
+    pipx install uvx
+  become: yes
+  become_user: "{{ dev_user }}"
+  args:
+    creates: "{{ dev_home }}/.local/bin/uvx"
+  when: not uv_exists.stat.exists
+  ignore_errors: yes
+
+- name: Install Claude Code CLI
+  shell: |
+    curl -fsSL https://claude.ai/install.sh | bash
+  become: yes
+  args:
+    creates: /usr/local/bin/claude
+    executable: /bin/bash
+  ignore_errors: yes
+
+- name: Create .secrets directory
+  file:
+    path: "{{ dev_home }}/.secrets"
+    state: directory
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0700'
+
+- name: Create API keys file template
+  copy:
+    content: |
+      # API Keys for zen MCP
+      export OPENROUTER_API_KEY="{{ dev_vm.openrouter_api_key | default('your-key-here') }}"
+    dest: "{{ dev_home }}/.secrets/api-keys"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0600'
+  when: dev_vm.openrouter_api_key is defined or true
+
+- name: Create System/scripts directory for addzen.sh
+  file:
+    path: "{{ dev_home }}/System/scripts"
+    state: directory
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Create addzen.sh script
+  template:
+    src: addzen.sh.j2
+    dest: "{{ dev_home }}/System/scripts/addzen.sh"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Add addzen alias
+  lineinfile:
+    path: "{{ dev_home }}/.bash_aliases"
+    line: 'alias addzen="bash $HOME/System/scripts/addzen.sh"'
+    state: present
+    create: yes
+
+- name: Install jq for JSON processing (needed by addzen.sh)
+  apt:
+    name: jq
+    state: present
+  become: yes
+
+- name: Create .claude.json template
+  template:
+    src: claude.json.j2
+    dest: "{{ dev_home }}/.claude.json"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0644'
+    force: no  # Don't overwrite if exists
+
+- name: Display Claude tools installation status
+  debug:
+    msg: |
+      Claude Code and zen MCP dependencies installed:
+      - uv package manager: ~/.cargo/bin/uv
+      - uvx tool: ~/.local/bin/uvx
+      - Claude Code CLI: /usr/local/bin/claude (if available)
+      - addzen script: ~/System/scripts/addzen.sh
+      - API keys file: ~/.secrets/api-keys
+
+      To use zen MCP:
+      1. Add your OPENROUTER_API_KEY to ~/.secrets/api-keys
+      2. Use 'addzen [project]' to add zen to any Claude project

@@ -1,0 +1,93 @@
+---
+# System packages installation
+
+- name: Install base system packages
+  apt:
+    name: "{{ system_packages }}"
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Install Python packages
+  apt:
+    name: "{{ python_packages }}"
+    state: present
+  become: yes
+
+- name: Install Python tools via pipx
+  shell: |
+    pipx install {{ item }}
+  loop: "{{ python_tools }}"
+  become: yes
+  become_user: "{{ dev_user }}"
+  changed_when: false
+  ignore_errors: yes
+
+- name: Install Node.js via NodeSource script
+  shell: |
+    curl -fsSL https://deb.nodesource.com/setup_{{ nodejs_version }}.x | bash -
+  become: yes
+  when: install_nodejs | bool
+  args:
+    creates: /etc/apt/sources.list.d/nodesource.list
+
+- name: Install Node.js
+  apt:
+    name:
+      - nodejs
+    state: present
+    update_cache: yes
+  become: yes
+  when: install_nodejs | bool
+
+- name: Install global npm packages
+  npm:
+    name: "{{ item }}"
+    global: yes
+  loop:
+    - yarn
+    - pnpm
+    - npm-check-updates
+    - nodemon
+    - pm2
+  become: yes
+  when: install_nodejs | bool
+
+- name: Download and install Go
+  unarchive:
+    src: "https://go.dev/dl/go{{ golang_version }}.linux-amd64.tar.gz"
+    dest: /usr/local
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  become: yes
+  when: install_golang | bool
+
+- name: Add Go to PATH
+  lineinfile:
+    path: "{{ dev_home }}/.profile"
+    line: 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin'
+    state: present
+    create: yes
+  when: install_golang | bool
+
+- name: Install Rust
+  shell: |
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+  become: yes
+  become_user: "{{ dev_user }}"
+  when: install_rust | bool
+  args:
+    creates: "{{ dev_home }}/.cargo/bin/rustc"
+
+- name: Install GitHub CLI
+  shell: |
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+    chmod go+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null
+    apt update
+    apt install gh -y
+  become: yes
+  args:
+    creates: /usr/bin/gh

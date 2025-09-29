@@ -1,0 +1,65 @@
+---
+# Clone GitHub repositories
+
+- name: Debug repo variables
+  debug:
+    msg:
+      - "github_repos defined: {{ github_repos is defined }}"
+      - "github_repos length: {{ github_repos | length if github_repos is defined else 'N/A' }}"
+      - "dev_vm.github_token defined: {{ dev_vm.github_token is defined }}"
+      - "dev_vm.github_user: {{ dev_vm.github_user | default('NOT SET') }}"
+
+- name: Create code directory structure
+  file:
+    path: "{{ dev_home }}/code"
+    state: directory
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Clone GitHub repositories if they don't exist
+  git:
+    repo: "https://{{ dev_vm.github_user }}:{{ dev_vm.github_token }}@github.com/{{ item.repo }}.git"
+    dest: "{{ dev_home }}/code/{{ item.repo | regex_replace('.*/(.*)$', '\\1') }}"
+    version: "{{ item.branch | default('main') }}"
+  become: yes
+  become_user: "{{ dev_user }}"
+  loop: "{{ github_repos }}"
+  when:
+    - github_repos is defined
+    - github_repos | length > 0
+    - dev_vm.github_token is defined
+  no_log: true
+
+- name: Update repositories to latest
+  shell: |
+    cd "{{ dev_home }}/code/{{ item.repo | regex_replace('.*/(.*)$', '\\1') }}"
+    echo "Updating {{ item.repo }}..."
+    git pull origin {{ item.branch | default('main') }}
+    echo "Updated to: $(git rev-parse --short HEAD)"
+  become: yes
+  become_user: "{{ dev_user }}"
+  loop: "{{ github_repos }}"
+  when:
+    - github_repos is defined
+    - github_repos | length > 0
+  register: repo_updates
+
+- name: Set correct ownership for cloned repos
+  file:
+    path: "{{ dev_home }}/code"
+    state: directory
+    recurse: yes
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+  when: github_repos is defined
+
+- name: Display repository update results
+  debug:
+    msg: "{{ item.stdout_lines }}"
+  loop: "{{ repo_updates.results }}"
+  when:
+    - repo_updates is defined
+    - item.stdout_lines is defined
+  loop_control:
+    label: "{{ item.item.repo }}"

@@ -1,0 +1,21 @@
+---
+# handlers file for dev-vm role
+
+- name: restart docker
+  systemd:
+    name: docker
+    state: restarted
+    daemon_reload: yes
+  become: yes
+
+- name: restart sshd
+  systemd:
+    name: sshd
+    state: restarted
+  become: yes
+
+- name: restart containerd
+  systemd:
+    name: containerd
+    state: restarted
+  become: yes

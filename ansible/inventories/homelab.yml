@@ -21,6 +21,11 @@ all:
           ansible_host: plex-server.lan
         ups-monitor:
           ansible_host: ups-monitor.lan
+    development:
+      hosts:
+        dev-vm:
+          ansible_host: dev.lan
+          ansible_user: root
   vars:
     ansible_python_interpreter: /usr/bin/python3
     ansible_ssh_private_key_file: ~/.ssh/scv

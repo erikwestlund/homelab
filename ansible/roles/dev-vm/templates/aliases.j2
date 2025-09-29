@@ -1,0 +1,140 @@
+# System aliases
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+alias ls='ls --color=auto'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+
+# Directory navigation
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+alias ~='cd ~'
+alias -- -='cd -'
+
+# Docker aliases
+alias d='docker'
+alias dc='docker-compose'
+alias dps='docker ps'
+alias dpsa='docker ps -a'
+alias di='docker images'
+alias dex='docker exec -it'
+alias dl='docker logs -f'
+alias dprune='docker system prune -a'
+alias dstop='docker stop $(docker ps -q)'
+alias drm='docker rm $(docker ps -aq)'
+alias drmi='docker rmi $(docker images -q)'
+
+# Podman aliases
+alias p='podman'
+alias pc='podman-compose'
+alias pps='podman ps'
+alias ppsa='podman ps -a'
+alias pi='podman images'
+alias pex='podman exec -it'
+alias pl='podman logs -f'
+
+# Git aliases
+alias g='git'
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gp='git push'
+alias gpl='git pull'
+alias gco='git checkout'
+alias gb='git branch'
+alias glog='git log --oneline --graph --decorate'
+
+# Development aliases
+alias py='python3'
+alias pip='python3 -m pip'
+alias venv='python3 -m venv'
+alias activate='source venv/bin/activate'
+alias npmg='npm install -g'
+alias npmi='npm install'
+alias npmr='npm run'
+alias npmd='npm run dev'
+alias npms='npm start'
+alias npmt='npm test'
+
+# System monitoring
+alias htop='htop'
+alias df='df -h'
+alias du='du -sh'
+alias free='free -h'
+alias ports='netstat -tulanp'
+alias psg='ps aux | grep'
+
+# Utility aliases
+alias wget='wget -c'
+alias myip='curl ipinfo.io/ip'
+alias speedtest='curl -s https://raw.githubusercontent.com/sivel/speedtest-cli/master/speedtest.py | python3 -'
+alias weather='curl wttr.in'
+
+# Safety aliases
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+alias mkdir='mkdir -pv'
+
+# Quick edits
+alias bashrc='vim ~/.bashrc'
+alias zshrc='vim ~/.zshrc'
+alias vimrc='vim ~/.vimrc'
+alias hosts='sudo vim /etc/hosts'
+
+# Workspace
+alias ws='cd ~/workspace'
+alias proj='cd ~/projects'
+alias code='cd ~/code'
+alias dotfiles='cd ~/code/dotfiles'
+alias homelab='cd ~/code/homelab'
+
+# Secrets management
+alias sync-secrets='bash ~/scripts/sync-secrets.sh'
+alias put-secrets='bash ~/scripts/put-secrets.sh'
+alias get-secrets='sync-secrets'
+
+# Claude and zen MCP
+alias addzen='bash ~/System/scripts/addzen.sh'
+
+# System updates
+alias update='sudo apt update && sudo apt upgrade -y && sudo apt autoremove -y'
+alias upgrade='update'
+
+# IP addresses
+alias myip='curl -s ipinfo.io/ip'
+alias localip='hostname -I | cut -d" " -f1'
+
+# Clear and reset
+alias cls='clear'
+alias reload='source ~/.zshrc 2>/dev/null || source ~/.bashrc'
+
+# Functions
+extract() {
+    if [ -f $1 ]; then
+        case $1 in
+            *.tar.bz2)   tar xjf $1     ;;
+            *.tar.gz)    tar xzf $1     ;;
+            *.bz2)       bunzip2 $1     ;;
+            *.rar)       unrar e $1     ;;
+            *.gz)        gunzip $1      ;;
+            *.tar)       tar xf $1      ;;
+            *.tbz2)      tar xjf $1     ;;
+            *.tgz)       tar xzf $1     ;;
+            *.zip)       unzip $1       ;;
+            *.Z)         uncompress $1  ;;
+            *.7z)        7z x $1        ;;
+            *)           echo "'$1' cannot be extracted" ;;
+        esac
+    else
+        echo "'$1' is not a valid file"
+    fi
+}
+
+# Create and enter directory
+mkcd() {
+    mkdir -p "$1" && cd "$1"
+}

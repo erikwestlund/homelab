@@ -1,0 +1,47 @@
+[user]
+    name = {{ dev_vm.github_user | default('Developer') }}
+    email = {{ dev_vm.github_email | default('dev@example.com') }}
+
+[core]
+    editor = {{ git_config['core.editor'] | default('vim') }}
+    autocrlf = input
+    whitespace = trailing-space,space-before-tab
+
+[pull]
+    rebase = {{ git_config['pull.rebase'] | default('false') }}
+
+[init]
+    defaultBranch = {{ git_config['init.defaultBranch'] | default('main') }}
+
+[alias]
+    st = status
+    co = checkout
+    br = branch
+    ci = commit
+    lg = log --oneline --graph --decorate
+    last = log -1 HEAD
+    unstage = reset HEAD --
+    amend = commit --amend
+    tags = tag -l
+    branches = branch -a
+    remotes = remote -v
+    contributors = shortlog --summary --numbered
+
+[color]
+    ui = auto
+
+[push]
+    default = simple
+
+[merge]
+    tool = vimdiff
+
+[diff]
+    tool = vimdiff
+
+{% if dev_vm.github_token is defined %}
+[url "https://{{ dev_vm.github_user }}:{{ dev_vm.github_token }}@github.com/"]
+    insteadOf = https://github.com/
+[url "https://{{ dev_vm.github_user }}:{{ dev_vm.github_token }}@github.com/"]
+    insteadOf = git@github.com:
+{% endif %}

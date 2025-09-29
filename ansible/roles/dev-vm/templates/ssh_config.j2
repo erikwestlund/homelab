@@ -1,0 +1,19 @@
+Host github.com
+    HostName github.com
+    User git
+    AddKeysToAgent yes
+    IdentitiesOnly yes
+
+Host gitlab.com
+    HostName gitlab.com
+    User git
+    AddKeysToAgent yes
+    IdentitiesOnly yes
+
+Host *
+    AddKeysToAgent yes
+    ServerAliveInterval 60
+    ServerAliveCountMax 3
+    ControlMaster auto
+    ControlPath ~/.ssh/control-%h-%p-%r
+    ControlPersist 600

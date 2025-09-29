@@ -1,0 +1,56 @@
+# Development environment variables
+
+# Git token for authenticated operations
+{% if dev_vm.github_user is defined %}
+export GITHUB_USERNAME="{{ dev_vm.github_user }}"
+{% endif %}
+{% if dev_vm.github_token is defined %}
+export GITHUB_TOKEN="{{ dev_vm.github_token }}"
+export GITHUB_PAT="{{ dev_vm.github_token }}"
+export GH_TOKEN="{{ dev_vm.github_token }}"
+{% endif %}
+
+# Docker Hub credentials
+{% if dev_vm.docker_hub_user is defined %}
+export DOCKER_HUB_USER="{{ dev_vm.docker_hub_user }}"
+{% endif %}
+{% if dev_vm.docker_hub_token is defined %}
+export DOCKER_HUB_TOKEN="{{ dev_vm.docker_hub_token }}"
+{% endif %}
+
+# Development paths
+export WORKSPACE="$HOME/workspace"
+export PROJECTS="$HOME/projects"
+
+# Go environment
+{% if install_golang | bool %}
+export GOPATH="$HOME/go"
+export GOBIN="$GOPATH/bin"
+export PATH="$PATH:/usr/local/go/bin:$GOBIN"
+{% endif %}
+
+# Rust environment
+{% if install_rust | bool %}
+export PATH="$PATH:$HOME/.cargo/bin"
+{% endif %}
+
+# Node.js environment
+{% if install_nodejs | bool %}
+export NODE_ENV="development"
+{% endif %}
+
+# Python environment
+export PYTHONDONTWRITEBYTECODE=1
+export PYTHONUNBUFFERED=1
+
+# Editor
+export EDITOR=vim
+export VISUAL=vim
+
+# Docker buildkit
+export DOCKER_BUILDKIT=1
+export COMPOSE_DOCKER_CLI_BUILD=1
+
+# Locale
+export LANG=en_US.UTF-8
+export LC_ALL=en_US.UTF-8

@@ -1,0 +1,100 @@
+" Basic settings
+set nocompatible
+set encoding=utf-8
+set number
+set relativenumber
+set cursorline
+set showcmd
+set wildmenu
+set lazyredraw
+set showmatch
+set incsearch
+set hlsearch
+set ignorecase
+set smartcase
+
+" Indentation
+set expandtab
+set tabstop=4
+set softtabstop=4
+set shiftwidth=4
+set autoindent
+set smartindent
+
+" File type detection
+filetype plugin indent on
+syntax enable
+
+" Backspace behavior
+set backspace=indent,eol,start
+
+" Status line
+set laststatus=2
+set statusline=%F%m%r%h%w\ [FORMAT=%{&ff}]\ [TYPE=%Y]\ [POS=%l,%v][%p%%]\ [BUFFER=%n]
+
+" Colors
+set background=dark
+if has('termguicolors')
+    set termguicolors
+endif
+
+" Backup and swap
+set nobackup
+set noswapfile
+set nowritebackup
+
+" Split navigation
+nnoremap <C-J> <C-W><C-J>
+nnoremap <C-K> <C-W><C-K>
+nnoremap <C-L> <C-W><C-L>
+nnoremap <C-H> <C-W><C-H>
+
+" Split opening
+set splitbelow
+set splitright
+
+" Folding
+set foldenable
+set foldlevelstart=10
+set foldnestmax=10
+set foldmethod=indent
+
+" Leader key
+let mapleader=","
+
+" Quick save
+nnoremap <leader>w :w<CR>
+
+" Clear search highlighting
+nnoremap <leader><space> :nohlsearch<CR>
+
+" Toggle paste mode
+set pastetoggle=<F2>
+
+" File type specific settings
+autocmd FileType python setlocal expandtab shiftwidth=4 tabstop=4
+autocmd FileType yaml setlocal expandtab shiftwidth=2 tabstop=2
+autocmd FileType json setlocal expandtab shiftwidth=2 tabstop=2
+autocmd FileType javascript setlocal expandtab shiftwidth=2 tabstop=2
+autocmd FileType typescript setlocal expandtab shiftwidth=2 tabstop=2
+autocmd FileType html setlocal expandtab shiftwidth=2 tabstop=2
+autocmd FileType css setlocal expandtab shiftwidth=2 tabstop=2
+autocmd FileType markdown setlocal expandtab shiftwidth=2 tabstop=2
+
+" Remove trailing whitespace on save
+autocmd BufWritePre * %s/\s\+$//e
+
+" Remember cursor position
+autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g'\"" | endif
+
+" Mouse support
+set mouse=a
+
+" Clipboard
+set clipboard=unnamedplus
+
+" Persistent undo
+if has('persistent_undo')
+    set undodir=~/.vim/undo
+    set undofile
+endif

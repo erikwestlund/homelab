@@ -1,0 +1,74 @@
+---
+# tasks file for dev-vm role
+
+- name: Update apt cache
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+  become: yes
+  tags:
+    - packages
+    - update
+
+- name: Install system packages
+  include_tasks: packages.yml
+  tags:
+    - packages
+
+- name: Configure Docker
+  include_tasks: docker.yml
+  when: true
+  tags:
+    - docker
+    - containers
+
+- name: Configure Podman
+  include_tasks: podman.yml
+  when: enable_podman | bool
+  tags:
+    - podman
+    - containers
+
+- name: Setup development environment
+  include_tasks: development.yml
+  tags:
+    - development
+    - git
+
+- name: Configure user environment
+  include_tasks: user.yml
+  tags:
+    - user
+    - shell
+
+- name: Configure security
+  include_tasks: security.yml
+  when: configure_firewall | bool or ssh_hardening | bool
+  tags:
+    - security
+
+- name: Configure performance
+  include_tasks: performance.yml
+  when: configure_swap | bool
+  tags:
+    - performance
+
+- name: Setup sync scripts and rclone
+  include_tasks: sync-scripts.yml
+  tags:
+    - sync
+    - secrets
+    - rclone
+
+- name: Clone GitHub repositories
+  include_tasks: repos.yml
+  tags:
+    - repos
+    - git
+
+- name: Install Claude Code and zen MCP tools
+  include_tasks: claude-tools.yml
+  tags:
+    - claude
+    - zen
+    - mcp

@@ -1,0 +1,54 @@
+---
+# Setup sync scripts and rclone
+
+- name: Install rclone
+  shell: |
+    curl https://rclone.org/install.sh | bash
+  become: yes
+  args:
+    creates: /usr/bin/rclone
+
+- name: Create scripts directory
+  file:
+    path: "/home/{{ dev_user }}/scripts"
+    state: directory
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Create sync-secrets.sh script
+  template:
+    src: sync-secrets.sh.j2
+    dest: "/home/{{ dev_user }}/scripts/sync-secrets.sh"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Create put-secrets.sh script
+  template:
+    src: put-secrets.sh.j2
+    dest: "/home/{{ dev_user }}/scripts/put-secrets.sh"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Create rclone config directory
+  file:
+    path: "/home/{{ dev_user }}/.config/rclone"
+    state: directory
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0700'
+
+- name: Note about rclone config
+  debug:
+    msg: |
+      IMPORTANT: You need to copy your rclone config to the dev VM:
+
+      From your Mac:
+      scp ~/.config/rclone/rclone.conf root@dev.lan:/home/erik/.config/rclone/
+      ssh root@dev.lan chown erik:erik /home/erik/.config/rclone/rclone.conf
+
+      Then you can run:
+      sync-secrets  # Pull secrets from cloud
+      put-secrets   # Push secrets to cloud

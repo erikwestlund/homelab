@@ -1,0 +1,23 @@
+{
+  "exec-opts": ["native.cgroupdriver=systemd"],
+  "storage-driver": "overlay2",
+  "log-driver": "json-file",
+  "log-opts": {
+    "max-size": "100m",
+    "max-file": "5"
+  },
+  "default-ulimits": {
+    "nofile": {
+      "Hard": 64000,
+      "Soft": 64000
+    }
+  },
+  "live-restore": true,
+  "userland-proxy": false,
+  "experimental": true,
+  "features": {
+    "buildkit": true
+  },
+  "insecure-registries": [],
+  "registry-mirrors": []
+}

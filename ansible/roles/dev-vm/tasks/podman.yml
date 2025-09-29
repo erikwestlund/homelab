@@ -1,0 +1,85 @@
+---
+# Podman installation and configuration
+
+- name: Install Podman and related tools
+  apt:
+    name:
+      - podman
+      - buildah
+      - skopeo
+      - containernetworking-plugins
+      - uidmap
+      - slirp4netns
+      - fuse-overlayfs
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Ensure pipx is available
+  shell: |
+    which pipx
+  register: pipx_check
+  ignore_errors: yes
+  changed_when: false
+
+- name: Install podman-compose via pipx
+  shell: |
+    pipx install podman-compose
+  become: yes
+  become_user: "{{ dev_user }}"
+  args:
+    creates: "{{ dev_home }}/.local/bin/podman-compose"
+  when: pipx_check.rc == 0
+
+- name: Create Podman configuration directory for user
+  file:
+    path: "{{ dev_home }}/.config/containers"
+    state: directory
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0755'
+
+- name: Configure Podman registries
+  template:
+    src: registries.conf.j2
+    dest: "{{ dev_home }}/.config/containers/registries.conf"
+    owner: "{{ dev_user }}"
+    group: "{{ dev_group }}"
+    mode: '0644'
+  when: docker_registries | length > 0
+
+- name: Enable podman socket for user
+  systemd:
+    name: "podman.socket"
+    state: started
+    enabled: yes
+    scope: user
+  become: yes
+  become_user: "{{ dev_user }}"
+
+- name: Set up podman-docker compatibility
+  alternatives:
+    name: docker
+    link: /usr/bin/docker
+    path: /usr/bin/podman
+    priority: 100
+  become: yes
+
+- name: Create Docker compatibility symlinks
+  file:
+    src: /usr/bin/podman
+    dest: /usr/local/bin/docker
+    state: link
+  become: yes
+  when: false  # Disabled by default to avoid conflicts with real Docker
+
+- name: Configure subuid and subgid for rootless containers
+  lineinfile:
+    path: "{{ item.file }}"
+    line: "{{ dev_user }}:100000:65536"
+    create: yes
+    state: present
+  loop:
+    - { file: /etc/subuid }
+    - { file: /etc/subgid }
+  become: yes

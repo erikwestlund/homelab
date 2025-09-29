@@ -1,0 +1,139 @@
+---
+# defaults file for dev-vm role
+
+# User configuration
+dev_user: "erik"  # Always configure for erik user
+dev_group: "erik"
+dev_home: "/home/erik"  # Erik's home directory
+
+# Docker configuration
+docker_edition: 'ce'
+docker_package: "docker-{{ docker_edition }}"
+docker_compose_version: "2.24.0"
+
+# Podman configuration
+enable_podman: true
+podman_compose_version: "1.0.6"
+
+# Development tools
+install_nodejs: true
+nodejs_version: "20"
+install_golang: true
+golang_version: "1.21.5"
+install_rust: false
+
+# Python tools
+python_packages:
+  - python3-pip
+  - python3-venv
+  - python3-dev
+  - pipx
+
+python_tools:
+  - virtualenv
+  - poetry
+  - black
+  - flake8
+  - mypy
+  - ansible
+  - ansible-lint
+
+# System packages
+system_packages:
+  # Core utilities
+  - curl
+  - wget
+  - htop
+  - vim
+  - tmux
+  - screen
+  - ncdu
+  - iotop
+  - sysstat
+  - duf
+  - tree
+  - unzip
+  - zip
+
+  # Build tools
+  - build-essential
+  - gcc
+  - g++
+  - make
+  - cmake
+  - automake
+  - autoconf
+  - pkg-config
+
+  # Network tools
+  - net-tools
+  - nmap
+  - traceroute
+  - mtr
+  - iperf3
+  - netcat-openbsd
+  - dnsutils
+  - whois
+
+  # Development tools
+  - git
+  - git-lfs
+  - jq
+  - ripgrep
+  - fzf
+  - bat
+  - fd-find
+  - silversearcher-ag
+
+  # System monitoring
+  - btop
+  - glances
+  - neofetch
+  - inxi
+
+  # Text processing
+  - dos2unix
+  - pandoc
+
+# Shell configuration
+configure_shell: true
+shell_type: "zsh"  # or "bash"
+install_ohmyzsh: true
+install_root_shell: true  # Also configure zsh/oh-my-zsh for root
+
+# Git configuration
+configure_git: true
+git_config:
+  core.editor: "vim"
+  pull.rebase: "false"
+  init.defaultBranch: "main"
+
+# Docker registry configuration
+docker_registries: []
+# Example:
+# docker_registries:
+#   - url: "docker.io"
+#     username: "{{ docker_hub_user }}"
+#     password: "{{ docker_hub_token }}"
+
+# Security
+configure_firewall: true
+ssh_hardening: false
+
+# Performance
+configure_swap: true
+swap_size_gb: 8
+
+# GitHub repositories to clone
+# Format:
+#   - repo: "username/repository"  # Required: GitHub repo path
+#     dest: "custom-folder-name"    # Optional: custom destination folder name
+#     branch: "main"                 # Optional: branch to clone (default: main)
+github_repos:
+  - { repo: "erikwestlund/homelab" }
+  - { repo: "erikwestlund/dotfiles" }
+  - { repo: "jhbiostatcenter/naaccord-data-depot" }
+  - { repo: "jhbiostatcenter/naaccord-r-tools" }
+  - { repo: "letsrun/better-shoes" }
+  # Add more repositories here as needed
+  # - { repo: "erikwestlund/project", dest: "my-project", branch: "develop" }
