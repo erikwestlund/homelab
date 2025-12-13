@@ -21,6 +21,8 @@ all:
           ansible_host: plex-server.lan
         ups-monitor:
           ansible_host: ups-monitor.lan
+        syncthing:
+          ansible_host: syncthing.lan
     development:
       hosts:
         dev-vm:

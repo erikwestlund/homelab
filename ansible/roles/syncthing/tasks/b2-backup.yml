@@ -1,0 +1,57 @@
+---
+# Backblaze B2 backup setup using rclone
+
+- name: Install rclone
+  apt:
+    name: rclone
+    state: present
+
+- name: Create rclone config directory
+  file:
+    path: "{{ syncthing_config_dir }}/.config/rclone"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0700'
+
+- name: Template rclone B2 config
+  template:
+    src: rclone-b2.conf.j2
+    dest: "{{ syncthing_config_dir }}/.config/rclone/rclone.conf"
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0600'
+  when: b2.account_id is defined and b2.application_key is defined
+
+- name: Create B2 backup script
+  template:
+    src: b2-backup.sh.j2
+    dest: /usr/local/bin/syncthing-b2-backup
+    mode: '0755'
+
+- name: Create log directory
+  file:
+    path: /var/log/syncthing
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+
+- name: Set up B2 backup cron job
+  cron:
+    name: "Syncthing B2 backup"
+    job: "/usr/local/bin/syncthing-b2-backup >> /var/log/syncthing/b2-backup.log 2>&1"
+    user: "{{ syncthing_user }}"
+    minute: "{{ syncthing_b2_schedule.split()[0] }}"
+    hour: "{{ syncthing_b2_schedule.split()[1] }}"
+    day: "{{ syncthing_b2_schedule.split()[2] }}"
+    month: "{{ syncthing_b2_schedule.split()[3] }}"
+    weekday: "{{ syncthing_b2_schedule.split()[4] }}"
+
+- name: Display B2 setup instructions
+  debug:
+    msg:
+      - "B2 backup configured with schedule: {{ syncthing_b2_schedule }}"
+      - "Backup script: /usr/local/bin/syncthing-b2-backup"
+      - "Log file: /var/log/syncthing/b2-backup.log"
+      - "If B2 credentials not in secrets.yaml, run: sudo -u {{ syncthing_user }} rclone config"

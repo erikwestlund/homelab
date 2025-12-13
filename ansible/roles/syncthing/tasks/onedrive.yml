@@ -1,0 +1,82 @@
+---
+# OneDrive synchronization setup
+
+- name: Install OneDrive client (abraunegg)
+  block:
+    - name: Add OneDrive PPA key
+      apt_key:
+        url: https://download.opensuse.org/repositories/home:npreining:debian-ubuntu-onedrive/Debian_12/Release.key
+        state: present
+
+    - name: Add OneDrive repository
+      apt_repository:
+        repo: "deb https://download.opensuse.org/repositories/home:/npreining:/debian-ubuntu-onedrive/Debian_12/ ./"
+        state: present
+        filename: onedrive
+
+    - name: Install OneDrive
+      apt:
+        name: onedrive
+        state: present
+        update_cache: yes
+
+    - name: Create OneDrive config directory
+      file:
+        path: "{{ syncthing_config_dir }}/.config/onedrive"
+        state: directory
+        owner: "{{ syncthing_user }}"
+        group: "{{ syncthing_group }}"
+        mode: '0700'
+
+    - name: Create OneDrive sync_list
+      copy:
+        content: |
+          {% for item in syncthing_onedrive_sync_list %}
+          {{ item }}
+          {% endfor %}
+        dest: "{{ syncthing_config_dir }}/.config/onedrive/sync_list"
+        owner: "{{ syncthing_user }}"
+        group: "{{ syncthing_group }}"
+        mode: '0600'
+      when: syncthing_onedrive_sync_list | length > 0
+
+    - name: Create OneDrive config
+      template:
+        src: onedrive-config.j2
+        dest: "{{ syncthing_config_dir }}/.config/onedrive/config"
+        owner: "{{ syncthing_user }}"
+        group: "{{ syncthing_group }}"
+        mode: '0600'
+
+    - name: Display OneDrive setup instructions
+      debug:
+        msg:
+          - "OneDrive client installed but requires interactive authentication."
+          - "Run as syncthing user: sudo -u {{ syncthing_user }} onedrive --synchronize --single-directory 'Documents'"
+          - "Follow the OAuth prompts to authenticate."
+          - "After authentication, enable the systemd service."
+  when: syncthing_onedrive_tool == "abraunegg"
+
+- name: Install rclone for OneDrive
+  block:
+    - name: Install rclone
+      apt:
+        name: rclone
+        state: present
+
+    - name: Create rclone config directory
+      file:
+        path: "{{ syncthing_config_dir }}/.config/rclone"
+        state: directory
+        owner: "{{ syncthing_user }}"
+        group: "{{ syncthing_group }}"
+        mode: '0700'
+
+    - name: Display rclone OneDrive setup instructions
+      debug:
+        msg:
+          - "rclone installed but requires interactive configuration."
+          - "Run: sudo -u {{ syncthing_user }} rclone config"
+          - "Create a new remote named 'onedrive' with Microsoft OneDrive backend."
+          - "Then set up bisync with: rclone bisync onedrive:/path {{ syncthing_onedrive_local_dir }}"
+  when: syncthing_onedrive_tool == "rclone"

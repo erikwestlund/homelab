@@ -1,0 +1,36 @@
+---
+# Syncthing host configuration
+# Customize these values for your environment
+
+# Mount points
+syncthing_files_dir: /srv/files          # SSD mount from Proxmox
+syncthing_nas_mount: /mnt/nas            # NAS mirror (optional, can be same data)
+
+# NAS configuration
+syncthing_nas_enabled: true
+syncthing_nas_source: "nas.lan:/volume1/Files"  # Adjust to your NAS
+syncthing_nas_fstype: nfs
+syncthing_nas_opts: "rw,soft,intr,nfsvers=4"
+
+# Folder structure
+# These folders will be created and can be selectively synced to clients
+syncthing_folders:
+  - Erik/Work
+  - Erik/Personal
+  - Erik/Home
+  - Erik/Photos
+  - Family
+  - Work/OneDrive
+
+# OneDrive integration (optional)
+syncthing_onedrive_enabled: false
+syncthing_onedrive_tool: "abraunegg"  # or "rclone"
+syncthing_onedrive_sync_list:
+  - /Documents/Work
+  - /Documents/CV
+  # Add specific OneDrive folders to sync
+
+# B2 backup (optional)
+syncthing_b2_enabled: false
+syncthing_b2_bucket: "homelab-files-backup"
+syncthing_b2_schedule: "0 2 * * *"  # 2 AM daily

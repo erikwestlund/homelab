@@ -1,0 +1,50 @@
+---
+# Syncthing configuration
+
+# Installation
+syncthing_user: syncthing
+syncthing_group: syncthing
+
+# Directories
+syncthing_config_dir: /var/lib/syncthing
+syncthing_files_dir: /srv/files
+syncthing_nas_mount: /mnt/nas
+
+# Network
+syncthing_gui_port: 8384
+syncthing_sync_port: 22000
+syncthing_discovery_port: 21027
+
+# GUI settings
+syncthing_gui_address: "0.0.0.0:{{ syncthing_gui_port }}"
+
+# NAS mount (NFS)
+syncthing_nas_enabled: true
+syncthing_nas_source: "nas.lan:/volume1/Files"
+syncthing_nas_fstype: nfs
+syncthing_nas_opts: "rw,soft,intr,nfsvers=4"
+
+# OneDrive sync
+syncthing_onedrive_enabled: false
+syncthing_onedrive_tool: "abraunegg"  # or "rclone"
+syncthing_onedrive_sync_list: []
+# Example:
+# syncthing_onedrive_sync_list:
+#   - /Documents/Work
+#   - /Documents/CV
+
+syncthing_onedrive_local_dir: "{{ syncthing_files_dir }}/Work/OneDrive"
+
+# B2 backup
+syncthing_b2_enabled: false
+syncthing_b2_bucket: "homelab-files-backup"
+syncthing_b2_schedule: "0 2 * * *"  # 2 AM daily
+
+# Folder structure to create
+syncthing_folders:
+  - Erik/Work
+  - Erik/Personal
+  - Erik/Home
+  - Erik/Photos
+  - Family
+  - Work/OneDrive

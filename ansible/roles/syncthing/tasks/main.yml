@@ -1,0 +1,126 @@
+---
+- name: Add Syncthing apt repository key
+  apt_key:
+    url: https://syncthing.net/release-key.gpg
+    state: present
+
+- name: Add Syncthing apt repository
+  apt_repository:
+    repo: "deb https://apt.syncthing.net/ syncthing stable"
+    state: present
+    filename: syncthing
+
+- name: Install Syncthing and dependencies
+  apt:
+    name:
+      - syncthing
+      - nfs-common
+    state: present
+    update_cache: yes
+
+- name: Create syncthing user
+  user:
+    name: "{{ syncthing_user }}"
+    system: yes
+    create_home: no
+    shell: /usr/sbin/nologin
+
+- name: Create configuration directory
+  file:
+    path: "{{ syncthing_config_dir }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0700'
+
+- name: Create files directory
+  file:
+    path: "{{ syncthing_files_dir }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+
+- name: Create folder structure
+  file:
+    path: "{{ syncthing_files_dir }}/{{ item }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+  loop: "{{ syncthing_folders }}"
+
+- name: Create NAS mount point
+  file:
+    path: "{{ syncthing_nas_mount }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+  when: syncthing_nas_enabled
+
+- name: Mount NAS via NFS
+  mount:
+    path: "{{ syncthing_nas_mount }}"
+    src: "{{ syncthing_nas_source }}"
+    fstype: "{{ syncthing_nas_fstype }}"
+    opts: "{{ syncthing_nas_opts }}"
+    state: mounted
+  when: syncthing_nas_enabled
+
+- name: Create systemd override directory
+  file:
+    path: /etc/systemd/system/syncthing@.service.d
+    state: directory
+    mode: '0755'
+
+- name: Deploy systemd service override
+  template:
+    src: syncthing.service.j2
+    dest: /etc/systemd/system/syncthing@.service.d/override.conf
+    mode: '0644'
+  notify: restart syncthing
+
+- name: Enable and start Syncthing service
+  systemd:
+    name: "syncthing@{{ syncthing_user }}"
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Wait for Syncthing to generate config
+  wait_for:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    timeout: 30
+
+- name: Configure Syncthing GUI address
+  xml:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    xpath: /configuration/gui/address
+    value: "{{ syncthing_gui_address }}"
+  notify: restart syncthing
+
+- name: Wait for Syncthing API to be available
+  uri:
+    url: "http://127.0.0.1:{{ syncthing_gui_port }}/rest/system/status"
+    method: GET
+  register: syncthing_status
+  until: syncthing_status.status == 200
+  retries: 10
+  delay: 3
+  ignore_errors: yes
+
+- name: Include OneDrive setup
+  include_tasks: onedrive.yml
+  when: syncthing_onedrive_enabled
+
+- name: Include B2 backup setup
+  include_tasks: b2-backup.yml
+  when: syncthing_b2_enabled
+
+- name: Display access information
+  debug:
+    msg:
+      - "Syncthing is running at: http://{{ ansible_default_ipv4.address }}:{{ syncthing_gui_port }}"
+      - "Files directory: {{ syncthing_files_dir }}"
+      - "NAS mount: {{ syncthing_nas_mount if syncthing_nas_enabled else 'disabled' }}"

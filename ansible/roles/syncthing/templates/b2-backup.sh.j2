@@ -1,0 +1,23 @@
+#!/bin/bash
+# Syncthing B2 backup script
+# Backs up files to Backblaze B2
+
+set -euo pipefail
+
+RCLONE_CONFIG="{{ syncthing_config_dir }}/.config/rclone/rclone.conf"
+SOURCE="{{ syncthing_files_dir }}"
+DEST="b2:{{ syncthing_b2_bucket }}"
+LOG_PREFIX="[$(date '+%Y-%m-%d %H:%M:%S')]"
+
+echo "$LOG_PREFIX Starting B2 backup..."
+
+/usr/bin/rclone sync "$SOURCE" "$DEST" \
+    --config "$RCLONE_CONFIG" \
+    --transfers 8 \
+    --checkers 16 \
+    --fast-list \
+    --stats 1m \
+    --stats-one-line \
+    --log-level INFO
+
+echo "$LOG_PREFIX B2 backup completed."

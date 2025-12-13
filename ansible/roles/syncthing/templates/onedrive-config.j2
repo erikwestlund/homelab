@@ -1,0 +1,19 @@
+# OneDrive configuration
+# See: https://github.com/abraunegg/onedrive/blob/master/docs/USAGE.md
+
+sync_dir = "{{ syncthing_onedrive_local_dir }}"
+
+# Skip dotfiles and common temp files
+skip_dotfiles = "true"
+skip_symlinks = "true"
+
+# Log level: 1=error, 2=warning, 3=info, 4=debug
+log_level = "3"
+
+# Check for updates every N seconds when running as monitor
+monitor_interval = "300"
+
+# Sync specific directories only (configured via sync_list file)
+{% if syncthing_onedrive_sync_list | length > 0 %}
+sync_list = "{{ syncthing_config_dir }}/.config/onedrive/sync_list"
+{% endif %}

@@ -1,0 +1,42 @@
+---
+- name: Deploy Syncthing File Synchronization
+  hosts: syncthing
+  vars_files:
+    - ../secrets.yaml
+
+  roles:
+    - common
+    - syncthing
+
+  tasks:
+    - name: Open firewall ports for Syncthing
+      ufw:
+        rule: allow
+        port: "{{ item.port }}"
+        proto: "{{ item.proto }}"
+        comment: "{{ item.comment }}"
+      loop:
+        - { port: "8384", proto: "tcp", comment: "Syncthing Web UI" }
+        - { port: "22000", proto: "tcp", comment: "Syncthing sync protocol" }
+        - { port: "21027", proto: "udp", comment: "Syncthing discovery" }
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes
+
+    - name: Display post-deployment instructions
+      debug:
+        msg:
+          - "=== Syncthing Deployment Complete ==="
+          - ""
+          - "Web UI: http://{{ ansible_default_ipv4.address }}:8384"
+          - ""
+          - "Next steps:"
+          - "1. Access the web UI and set a GUI password"
+          - "2. Add device IDs for laptops/desktops"
+          - "3. Configure shared folders"
+          - ""
+          - "For OneDrive sync (if enabled):"
+          - "  sudo -u syncthing onedrive --synchronize"
+          - "  (Follow OAuth prompts, then enable systemd service)"
+          - ""
+          - "For B2 backup (if enabled):"
+          - "  Test manually: /usr/local/bin/syncthing-b2-backup"
