@@ -1,0 +1,11 @@
+---
+immich_install_dir: /opt/docker/immich
+immich_upload_dir: /opt/docker/immich/upload
+immich_db_data_dir: /opt/docker/immich/postgres
+immich_model_cache_dir: /opt/docker/immich/model-cache
+
+# Generate with: openssl rand -base64 32
+immich_db_password: "{{ lookup('password', '/dev/null length=32 chars=ascii_letters,digits') }}"
+
+# Immich version - use release tag
+immich_version: release

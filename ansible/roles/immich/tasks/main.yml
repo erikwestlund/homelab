@@ -1,0 +1,85 @@
+---
+- name: Create Immich directories
+  file:
+    path: "{{ item }}"
+    state: directory
+    mode: '0755'
+  loop:
+    - "{{ immich_install_dir }}"
+    - "{{ immich_upload_dir }}"
+    - "{{ immich_db_data_dir }}"
+    - "{{ immich_model_cache_dir }}"
+
+- name: Check if DB password file exists
+  stat:
+    path: "{{ immich_install_dir }}/.db_password"
+  register: db_password_file
+
+- name: Generate DB password if not exists
+  shell: openssl rand -base64 32 | tr -d '/+=' | head -c 32 > {{ immich_install_dir }}/.db_password
+  args:
+    creates: "{{ immich_install_dir }}/.db_password"
+  when: not db_password_file.stat.exists
+
+- name: Read DB password
+  slurp:
+    src: "{{ immich_install_dir }}/.db_password"
+  register: db_password_content
+
+- name: Set DB password fact
+  set_fact:
+    immich_db_password: "{{ db_password_content.content | b64decode | trim }}"
+
+- name: Template docker-compose.yml
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ immich_install_dir }}/docker-compose.yml"
+    mode: '0644'
+
+- name: Template .env file
+  template:
+    src: env.j2
+    dest: "{{ immich_install_dir }}/.env"
+    mode: '0600'
+
+- name: Pull Immich images
+  community.docker.docker_compose_v2:
+    project_src: "{{ immich_install_dir }}"
+    pull: always
+    state: present
+  register: pull_result
+  retries: 3
+  delay: 10
+  until: pull_result is succeeded
+
+- name: Start Immich stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ immich_install_dir }}"
+    state: present
+  register: immich_compose
+
+- name: Wait for Immich to be healthy
+  uri:
+    url: "http://localhost:2283/api/server-info/ping"
+    method: GET
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 30
+  delay: 10
+  ignore_errors: yes
+
+- name: Display Immich access info
+  debug:
+    msg:
+      - "=== Immich Photo Management ==="
+      - ""
+      - "Web UI: http://{{ ansible_default_ipv4.address }}:2283"
+      - ""
+      - "Next steps:"
+      - "1. Open the web UI and create your admin account"
+      - "2. Install the mobile app and configure server URL"
+      - "3. Consider setting up external storage for uploads"
+      - ""
+      - "Upload directory: {{ immich_upload_dir }}"
+      - "Database: {{ immich_db_data_dir }}"

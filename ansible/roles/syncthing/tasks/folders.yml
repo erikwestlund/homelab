@@ -1,0 +1,93 @@
+---
+# Configure Syncthing shared folders
+
+- name: Create shared folder directories
+  file:
+    path: "{{ item.path }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+  loop: "{{ syncthing_shared_folders }}"
+  loop_control:
+    label: "{{ item.id }}"
+
+- name: Create .stfolder markers for Syncthing
+  file:
+    path: "{{ item.path }}/.stfolder"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+  loop: "{{ syncthing_shared_folders }}"
+  loop_control:
+    label: "{{ item.id }}"
+
+- name: Get API key from config
+  xml:
+    path: "{{ syncthing_config_dir }}/config.xml"
+    xpath: /configuration/gui/apikey
+    content: text
+  register: api_key_result
+
+- name: Set API key fact
+  set_fact:
+    syncthing_api_key: "{{ api_key_result.matches[0].apikey }}"
+
+- name: Get existing folders from Syncthing
+  uri:
+    url: "http://127.0.0.1:{{ syncthing_gui_port }}/rest/config/folders"
+    method: GET
+    headers:
+      X-API-Key: "{{ syncthing_api_key }}"
+  register: existing_folders
+  ignore_errors: yes
+
+- name: Set existing folder IDs
+  set_fact:
+    existing_folder_ids: "{{ existing_folders.json | default([]) | map(attribute='id') | list }}"
+
+- name: Configure shared folders in Syncthing
+  uri:
+    url: "http://127.0.0.1:{{ syncthing_gui_port }}/rest/config/folders/{{ item.id }}"
+    method: PUT
+    headers:
+      X-API-Key: "{{ syncthing_api_key }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      id: "{{ item.id }}"
+      label: "{{ item.label }}"
+      path: "{{ item.path }}"
+      type: "sendreceive"
+      devices: "{{ [{'deviceID': syncthing_device_ids.server}] + (item.devices | map('community.general.dict_kv', 'deviceID') | list) }}"
+      rescanIntervalS: 3600
+      fsWatcherEnabled: true
+      fsWatcherDelayS: 10
+      ignorePerms: false
+      autoNormalize: true
+    status_code: [200, 201]
+  loop: "{{ syncthing_shared_folders }}"
+  loop_control:
+    label: "{{ item.id }}"
+  when: item.id not in existing_folder_ids
+  notify: restart syncthing
+
+- name: Update existing shared folders in Syncthing
+  uri:
+    url: "http://127.0.0.1:{{ syncthing_gui_port }}/rest/config/folders/{{ item.id }}"
+    method: PATCH
+    headers:
+      X-API-Key: "{{ syncthing_api_key }}"
+      Content-Type: application/json
+    body_format: json
+    body:
+      label: "{{ item.label }}"
+      path: "{{ item.path }}"
+      devices: "{{ [{'deviceID': syncthing_device_ids.server}] + (item.devices | map('community.general.dict_kv', 'deviceID') | list) }}"
+    status_code: [200]
+  loop: "{{ syncthing_shared_folders }}"
+  loop_control:
+    label: "{{ item.id }}"
+  when: item.id in existing_folder_ids
+  notify: restart syncthing

@@ -1,0 +1,107 @@
+---
+# Rsync photos from Immich NAS to Syncthing local storage
+
+- name: Install rsync
+  apt:
+    name: rsync
+    state: present
+
+- name: Create Photos NAS mount point
+  file:
+    path: "{{ photo_sync_nas_mount }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+
+- name: Create Photos NAS credentials file
+  copy:
+    content: |
+      username={{ photo_sync_nas_username }}
+      password={{ photo_sync_nas_password }}
+    dest: /etc/photo-sync-nas-credentials
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+
+- name: Mount Photos NAS via CIFS
+  mount:
+    path: "{{ photo_sync_nas_mount }}"
+    src: "{{ photo_sync_nas_source }}"
+    fstype: cifs
+    opts: "credentials=/etc/photo-sync-nas-credentials,uid={{ syncthing_user }},gid={{ syncthing_group }},file_mode=0644,dir_mode=0755,_netdev,nofail"
+    state: mounted
+
+- name: Ensure destination directory exists
+  file:
+    path: "{{ photo_sync_dest }}"
+    state: directory
+    owner: "{{ syncthing_user }}"
+    group: "{{ syncthing_group }}"
+    mode: '0755'
+
+- name: Create photo sync script
+  template:
+    src: photo-sync.sh.j2
+    dest: /usr/local/bin/photo-sync
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create systemd service for photo sync
+  copy:
+    content: |
+      [Unit]
+      Description=Sync photos from NAS to Syncthing
+      After=network-online.target mnt-nas-photos.mount
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/photo-sync
+      User=root
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/photo-sync.service
+    mode: '0644'
+
+- name: Create systemd timer for photo sync
+  copy:
+    content: |
+      [Unit]
+      Description=Run photo sync periodically
+
+      [Timer]
+      OnCalendar={{ photo_sync_schedule }}
+      Persistent=true
+      RandomizedDelaySec=300
+
+      [Install]
+      WantedBy=timers.target
+    dest: /etc/systemd/system/photo-sync.timer
+    mode: '0644'
+
+- name: Enable and start photo sync timer
+  systemd:
+    name: photo-sync.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Run initial photo sync
+  command: /usr/local/bin/photo-sync
+  async: 3600
+  poll: 0
+  register: initial_sync
+  when: photo_sync_run_initial | default(true)
+
+- name: Display photo sync info
+  debug:
+    msg:
+      - "Photo sync configured:"
+      - "  Source: {{ photo_sync_nas_mount }}/{{ photo_sync_nas_subpath }}"
+      - "  Destination: {{ photo_sync_dest }}"
+      - "  Schedule: {{ photo_sync_schedule }}"
+      - "  Manual run: sudo /usr/local/bin/photo-sync"

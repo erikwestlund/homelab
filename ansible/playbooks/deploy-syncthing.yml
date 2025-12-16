@@ -2,7 +2,18 @@
 - name: Deploy Syncthing File Synchronization
   hosts: syncthing
   vars_files:
-    - ../secrets.yaml
+    - ~/.secrets/secrets.yml
+  vars:
+    # Photo sync from Immich NAS
+    photo_sync_enabled: true
+    photo_sync_nas_username: "{{ nas_erik_username }}"
+    photo_sync_nas_password: "{{ nas_erik_password }}"
+    # NAS backup (everything except Photos)
+    nas_backup_enabled: true
+    nas_backup_username: "{{ nas_erik_username }}"
+    nas_backup_password: "{{ nas_erik_password }}"
+    # Google Drive sync for Scans
+    gdrive_sync_enabled: true
 
   roles:
     - common

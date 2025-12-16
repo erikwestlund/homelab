@@ -1,0 +1,64 @@
+name: immich
+
+services:
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:{{ immich_version }}
+    volumes:
+      - {{ immich_upload_dir }}:/usr/src/app/upload
+      - /etc/localtime:/etc/localtime:ro
+    env_file:
+      - .env
+    ports:
+      - 2283:2283
+    depends_on:
+      - redis
+      - database
+    restart: always
+
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:{{ immich_version }}
+    volumes:
+      - {{ immich_model_cache_dir }}:/cache
+    env_file:
+      - .env
+    restart: always
+
+  redis:
+    container_name: immich_redis
+    image: docker.io/redis:6.2-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+    restart: always
+
+  database:
+    container_name: immich_postgres
+    image: docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0
+    environment:
+      POSTGRES_PASSWORD: {{ immich_db_password }}
+      POSTGRES_USER: postgres
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - {{ immich_db_data_dir }}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready --dbname=immich --username=postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    command:
+      - "postgres"
+      - "-c"
+      - "shared_preload_libraries=vectors.so"
+      - "-c"
+      - "search_path=\"$$user\", public, vectors"
+      - "-c"
+      - "logging_collector=on"
+      - "-c"
+      - "max_wal_size=2GB"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "wal_compression=on"
+    restart: always

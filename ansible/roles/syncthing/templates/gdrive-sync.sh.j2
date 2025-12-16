@@ -1,0 +1,35 @@
+#!/bin/bash
+# Sync from Google Drive to local directory
+
+set -e
+
+REMOTE="{{ gdrive_sync_remote }}:{{ gdrive_sync_remote_path }}"
+DEST="{{ gdrive_sync_dest }}"
+LOGFILE="/var/log/gdrive-sync.log"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') Starting Google Drive sync..." >> "$LOGFILE"
+
+# Check if rclone is configured
+if [ ! -f /root/.config/rclone/rclone.conf ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: rclone not configured" >> "$LOGFILE"
+    exit 1
+fi
+
+# Run rclone sync (one-way from Google Drive to local)
+rclone sync "$REMOTE" "$DEST" \
+    --log-file="$LOGFILE" \
+    --log-level INFO \
+    --transfers 4 \
+    --checkers 8 \
+    --contimeout 60s \
+    --timeout 300s \
+    --retries 3 \
+    --low-level-retries 10 \
+    --exclude='.stfolder/**' \
+    --exclude='.stignore' \
+    --exclude='.stversions/**'
+
+# Fix ownership
+chown -R {{ syncthing_user }}:{{ syncthing_group }} "$DEST"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') Google Drive sync completed." >> "$LOGFILE"

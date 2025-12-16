@@ -40,11 +40,84 @@ syncthing_b2_enabled: false
 syncthing_b2_bucket: "homelab-files-backup"
 syncthing_b2_schedule: "0 2 * * *"  # 2 AM daily
 
-# Folder structure to create
-syncthing_folders:
-  - Erik/Work
-  - Erik/Personal
-  - Erik/Home
-  - Erik/Photos
-  - Family
-  - Work/OneDrive
+# Device IDs
+syncthing_device_ids:
+  server: "6Y6GSBL-C5MTNSQ-P2PDN32-4B6UKWU-TAW6WXB-QPJQHZ3-RJGJHXY-HPWKEQL"
+  erik_laptop: "3SKQLB6-KE34JYV-3SK7G56-5RT6GEX-DNFWQSM-S4WLOB2-6XQRIWU-HOOG2AE"
+  erik_desktop: "R7GEJYE-EXCAAPS-5KDVPM2-RGF46BT-5U3O6RK-3F6W3FN-GQ4OPJY-QOH3UAH"
+
+# Syncthing shared folders configuration
+syncthing_shared_folders:
+  - id: erik-documents
+    label: "Erik - Documents"
+    path: "{{ syncthing_files_dir }}/Erik/Documents"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+  - id: erik-work
+    label: "Erik - Work"
+    path: "{{ syncthing_files_dir }}/Erik/Work"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+  - id: erik-desktop
+    label: "Erik - Desktop"
+    path: "{{ syncthing_files_dir }}/Erik/Desktop"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+  - id: erik-screenshots
+    label: "Erik - Screenshots"
+    path: "{{ syncthing_files_dir }}/Erik/Screenshots"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+  - id: scans
+    label: "Scans"
+    path: "{{ syncthing_files_dir }}/Scans"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+  - id: erik-chromium
+    label: "Erik - Chromium"
+    path: "{{ syncthing_files_dir }}/Erik/Chromium"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+  - id: erik-photos
+    label: "Erik - Photos"
+    path: "{{ syncthing_files_dir }}/Erik/Photos"
+    devices:
+      - "{{ syncthing_device_ids.erik_laptop }}"
+      - "{{ syncthing_device_ids.erik_desktop }}"
+
+# Legacy: simple directory list (for backwards compat)
+syncthing_folders: []
+
+# Photo sync from Immich NAS
+photo_sync_enabled: false
+photo_sync_nas_mount: /mnt/nas/photos
+photo_sync_nas_source: "//192.168.1.10/Photos"
+photo_sync_nas_subpath: "library/admin"
+photo_sync_nas_username: ""
+photo_sync_nas_password: ""
+photo_sync_dest: "{{ syncthing_files_dir }}/Erik/Photos"
+photo_sync_schedule: "*-*-* *:00/15:00"  # Every 15 minutes
+photo_sync_run_initial: true
+
+# NAS backup (rsync Syncthing files to NAS, excluding Photos)
+nas_backup_enabled: false
+nas_backup_mount: /mnt/nas/syncthing-backup
+nas_backup_source: "//192.168.1.10/Syncthing"
+nas_backup_username: ""
+nas_backup_password: ""
+nas_backup_schedule: "*-*-* *:30:00"  # Every hour at :30
+nas_backup_run_initial: true
+
+# Google Drive sync (rclone)
+gdrive_sync_enabled: false
+gdrive_sync_remote: "gdrive"
+gdrive_sync_remote_path: "Scans"
+gdrive_sync_dest: "{{ syncthing_files_dir }}/Scans"
+gdrive_sync_schedule: "*-*-* *:00/5:00"  # Every 5 minutes
+gdrive_sync_run_initial: true

@@ -1,0 +1,17 @@
+---
+- name: Deploy Immich Photo Management
+  hosts: immich
+
+  roles:
+    - common
+    - immich
+
+  tasks:
+    - name: Open firewall port for Immich
+      ufw:
+        rule: allow
+        port: "2283"
+        proto: "tcp"
+        comment: "Immich Web UI"
+      when: ansible_facts['os_family'] == "Debian"
+      ignore_errors: yes

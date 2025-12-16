@@ -15,6 +15,7 @@
     name:
       - syncthing
       - nfs-common
+      - python3-lxml
     state: present
     update_cache: yes
 
@@ -41,7 +42,7 @@
     group: "{{ syncthing_group }}"
     mode: '0755'
 
-- name: Create folder structure
+- name: Create folder structure (legacy)
   file:
     path: "{{ syncthing_files_dir }}/{{ item }}"
     state: directory
@@ -49,6 +50,7 @@
     group: "{{ syncthing_group }}"
     mode: '0755'
   loop: "{{ syncthing_folders }}"
+  when: syncthing_folders | length > 0
 
 - name: Create NAS mount point
   file:
@@ -59,6 +61,24 @@
     mode: '0755'
   when: syncthing_nas_enabled
 
+- name: Install CIFS utilities
+  apt:
+    name: cifs-utils
+    state: present
+  when: syncthing_nas_enabled and syncthing_nas_fstype == "cifs"
+
+- name: Create NAS credentials file
+  copy:
+    content: |
+      username={{ syncthing_nas_username }}
+      password={{ syncthing_nas_password }}
+    dest: /etc/syncthing-nas-credentials
+    owner: root
+    group: root
+    mode: '0600'
+  when: syncthing_nas_enabled and syncthing_nas_username is defined
+  no_log: true
+
 - name: Mount NAS via NFS
   mount:
     path: "{{ syncthing_nas_mount }}"
@@ -66,7 +86,16 @@
     fstype: "{{ syncthing_nas_fstype }}"
     opts: "{{ syncthing_nas_opts }}"
     state: mounted
-  when: syncthing_nas_enabled
+  when: syncthing_nas_enabled and syncthing_nas_fstype == "nfs"
+
+- name: Mount NAS via CIFS
+  mount:
+    path: "{{ syncthing_nas_mount }}"
+    src: "{{ syncthing_nas_source }}"
+    fstype: cifs
+    opts: "credentials=/etc/syncthing-nas-credentials,uid={{ syncthing_user }},gid={{ syncthing_group }},{{ syncthing_nas_opts }}"
+    state: mounted
+  when: syncthing_nas_enabled and syncthing_nas_fstype == "cifs"
 
 - name: Create systemd override directory
   file:
@@ -117,6 +146,22 @@
 - name: Include B2 backup setup
   include_tasks: b2-backup.yml
   when: syncthing_b2_enabled
+
+- name: Include photo sync setup
+  include_tasks: photo-sync.yml
+  when: photo_sync_enabled
+
+- name: Include shared folders setup
+  include_tasks: folders.yml
+  when: syncthing_shared_folders | length > 0
+
+- name: Include NAS backup setup
+  include_tasks: nas-backup.yml
+  when: nas_backup_enabled
+
+- name: Include Google Drive sync setup
+  include_tasks: gdrive-sync.yml
+  when: gdrive_sync_enabled
 
 - name: Display access information
   debug:

@@ -1,0 +1,93 @@
+---
+# Rsync backup from Syncthing server to NAS (excluding Photos)
+
+- name: Create NAS backup mount point
+  file:
+    path: "{{ nas_backup_mount }}"
+    state: directory
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create NAS backup credentials file
+  copy:
+    content: |
+      username={{ nas_backup_username }}
+      password={{ nas_backup_password }}
+    dest: /etc/nas-backup-credentials
+    owner: root
+    group: root
+    mode: '0600'
+  no_log: true
+
+- name: Mount NAS backup share via CIFS
+  mount:
+    path: "{{ nas_backup_mount }}"
+    src: "{{ nas_backup_source }}"
+    fstype: cifs
+    opts: "credentials=/etc/nas-backup-credentials,uid={{ syncthing_user }},gid={{ syncthing_group }},file_mode=0644,dir_mode=0755,_netdev,nofail"
+    state: mounted
+
+- name: Create NAS backup script
+  template:
+    src: nas-backup.sh.j2
+    dest: /usr/local/bin/nas-backup
+    owner: root
+    group: root
+    mode: '0755'
+
+- name: Create systemd service for NAS backup
+  copy:
+    content: |
+      [Unit]
+      Description=Backup Syncthing files to NAS
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/usr/local/bin/nas-backup
+      User=root
+
+      [Install]
+      WantedBy=multi-user.target
+    dest: /etc/systemd/system/nas-backup.service
+    mode: '0644'
+
+- name: Create systemd timer for NAS backup
+  copy:
+    content: |
+      [Unit]
+      Description=Run NAS backup periodically
+
+      [Timer]
+      OnCalendar={{ nas_backup_schedule }}
+      Persistent=true
+      RandomizedDelaySec=300
+
+      [Install]
+      WantedBy=timers.target
+    dest: /etc/systemd/system/nas-backup.timer
+    mode: '0644'
+
+- name: Enable and start NAS backup timer
+  systemd:
+    name: nas-backup.timer
+    enabled: yes
+    state: started
+    daemon_reload: yes
+
+- name: Run initial NAS backup
+  command: /usr/local/bin/nas-backup
+  async: 3600
+  poll: 0
+  when: nas_backup_run_initial | default(true)
+
+- name: Display NAS backup info
+  debug:
+    msg:
+      - "NAS backup configured:"
+      - "  Source: {{ syncthing_files_dir }} (excluding Photos)"
+      - "  Destination: {{ nas_backup_mount }}"
+      - "  Schedule: {{ nas_backup_schedule }}"
+      - "  Manual run: sudo /usr/local/bin/nas-backup"

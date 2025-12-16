@@ -4,23 +4,28 @@
 
 # Mount points
 syncthing_files_dir: /srv/files          # SSD mount from Proxmox
-syncthing_nas_mount: /mnt/nas            # NAS mirror (optional, can be same data)
+syncthing_nas_mount: /mnt/nas/Files      # NAS FilesErik share
 
 # NAS configuration
+# Set to true after NAS share is ready and LXC has mount privileges
 syncthing_nas_enabled: true
-syncthing_nas_source: "nas.lan:/volume1/Files"  # Adjust to your NAS
-syncthing_nas_fstype: nfs
-syncthing_nas_opts: "rw,soft,intr,nfsvers=4"
+syncthing_nas_source: "//192.168.1.10/FilesErik"  # CIFS/SMB path
+syncthing_nas_fstype: cifs
+syncthing_nas_opts: "vers=3.0,iocharset=utf8,file_mode=0775,dir_mode=0775"
+syncthing_nas_username: "{{ nas_erik_username }}"
+syncthing_nas_password: "{{ nas_erik_password }}"
 
 # Folder structure
 # These folders will be created and can be selectively synced to clients
 syncthing_folders:
-  - Erik/Work
-  - Erik/Personal
-  - Erik/Home
+  - Erik/Documents
+  - Erik/Documents/Family
+  - Erik/Documents/Financial
+  - Erik/Documents/Home
+  - Erik/Documents/JHU
+  - Erik/Documents/Personal
   - Erik/Photos
-  - Family
-  - Work/OneDrive
+  - Erik/Work
 
 # OneDrive integration (optional)
 syncthing_onedrive_enabled: false

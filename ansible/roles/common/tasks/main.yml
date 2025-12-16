@@ -40,9 +40,13 @@
       - vim
     state: present
 
+- name: Set Docker OS name
+  set_fact:
+    docker_os: "{{ 'ubuntu' if ansible_distribution == 'Ubuntu' else 'debian' }}"
+
 - name: Add Docker GPG key
   apt_key:
-    url: https://download.docker.com/linux/debian/gpg
+    url: "https://download.docker.com/linux/{{ docker_os }}/gpg"
     state: present
 
 - name: Get DEB architecture
@@ -52,7 +56,7 @@
 
 - name: Add Docker repository
   apt_repository:
-    repo: "deb [arch={{ deb_architecture.stdout }}] https://download.docker.com/linux/debian {{ ansible_distribution_release }} stable"
+    repo: "deb [arch={{ deb_architecture.stdout }}] https://download.docker.com/linux/{{ docker_os }} {{ ansible_distribution_release }} stable"
     state: present
     update_cache: yes
 

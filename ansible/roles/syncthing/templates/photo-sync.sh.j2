@@ -1,0 +1,36 @@
+#!/bin/bash
+# Sync photos from Immich NAS to Syncthing local storage
+
+set -e
+
+SOURCE="{{ photo_sync_nas_mount }}/{{ photo_sync_nas_subpath }}"
+DEST="{{ photo_sync_dest }}"
+LOGFILE="/var/log/photo-sync.log"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') Starting photo sync..." >> "$LOGFILE"
+
+# Check if source is mounted
+if ! mountpoint -q "{{ photo_sync_nas_mount }}"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: NAS not mounted at {{ photo_sync_nas_mount }}" >> "$LOGFILE"
+    exit 1
+fi
+
+# Check if source directory exists
+if [ ! -d "$SOURCE" ]; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') WARNING: Source directory does not exist yet: $SOURCE" >> "$LOGFILE"
+    exit 0
+fi
+
+# Run rsync
+rsync -av --delete \
+    --exclude='.immich' \
+    --exclude='.stfolder' \
+    --exclude='.stignore' \
+    --exclude='.stversions' \
+    --exclude='*.tmp' \
+    "$SOURCE/" "$DEST/" >> "$LOGFILE" 2>&1
+
+# Fix ownership
+chown -R {{ syncthing_user }}:{{ syncthing_group }} "$DEST"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') Photo sync completed." >> "$LOGFILE"

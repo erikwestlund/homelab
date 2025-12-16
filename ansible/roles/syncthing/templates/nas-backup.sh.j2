@@ -1,0 +1,28 @@
+#!/bin/bash
+# Backup Syncthing files to NAS (excluding Photos which are already on NAS)
+
+set -e
+
+SOURCE="{{ syncthing_files_dir }}/"
+DEST="{{ nas_backup_mount }}/"
+LOGFILE="/var/log/nas-backup.log"
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') Starting NAS backup..." >> "$LOGFILE"
+
+# Check if destination is mounted
+if ! mountpoint -q "{{ nas_backup_mount }}"; then
+    echo "$(date '+%Y-%m-%d %H:%M:%S') ERROR: NAS not mounted at {{ nas_backup_mount }}" >> "$LOGFILE"
+    exit 1
+fi
+
+# Run rsync excluding Photos directory
+rsync -av --delete \
+    --exclude='Erik/Photos' \
+    --exclude='Erik/Photos/**' \
+    --exclude='.stfolder' \
+    --exclude='.stignore' \
+    --exclude='.stversions' \
+    --exclude='*.tmp' \
+    "$SOURCE" "$DEST" >> "$LOGFILE" 2>&1
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') NAS backup completed." >> "$LOGFILE"
