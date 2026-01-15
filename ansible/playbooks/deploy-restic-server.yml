@@ -1,0 +1,309 @@
+---
+# Restic Server Playbook
+# Deploys and provisions the restic VM (Ubuntu 24.04) with:
+#   - CIFS mount to NAS for backup repository
+#   - Restic cleanup timer (daily at 3am)
+#   - Backrest web UI for browsing/restoring snapshots
+#
+# Usage:
+#   cd ~/Projects/homelab/ansible
+#   ansible-playbook playbooks/deploy-restic-server.yml
+
+# ============================================
+# Play 1: Deploy VM to Proxmox
+# ============================================
+- name: Deploy Restic VM to Proxmox
+  hosts: localhost
+  gather_facts: false
+
+  vars:
+    proxmox_host: hatchery.lan
+    proxmox_user: root
+    vm_id: 106
+    vm_name: restic
+    vm_memory: 1024
+    vm_cores: 1
+    vm_disk_size: "8G"
+    vm_mac_address: "BC:24:11:3C:FC:F2"
+    cloud_image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+    cloud_image_name: "ubuntu-24.04-cloudimg-amd64.img"
+    cloudinit_user: erik
+    cloudinit_ssh_key_file: "/root/.ssh/authorized_keys"
+    proxmox_storage: "bolt"
+
+  roles:
+    - role: proxmox-vm
+
+# ============================================
+# Play 2: Provision the VM
+# ============================================
+- name: Configure Restic Server
+  hosts: restic
+  gather_facts: true
+  become: true
+
+  vars_files:
+    - ~/.secrets/homelab/secrets.yml
+
+  vars:
+    # NAS mount configuration
+    nas_ip: "192.168.1.10"
+    nas_share: "SystemSnapshots"
+    nas_mount_point: "/mnt/nas/SystemSnapshots"
+    nas_credentials_file: "/root/.nas-credentials"
+
+    # Restic configuration
+    restic_repository: "/mnt/nas/SystemSnapshots"
+    restic_password_file: "/root/.restic-password"
+
+    # Retention policy
+    restic_keep_hourly: 24
+    restic_keep_daily: 7
+    restic_keep_weekly: 4
+    restic_keep_monthly: 6
+
+    # Backrest configuration
+    backrest_version: "1.10.1"
+    backrest_listen: "0.0.0.0:9898"
+    backrest_data_dir: "/var/lib/backrest"
+    backrest_config_dir: "/root/.config/backrest"
+    backrest_instance_id: "restic-nas"
+
+  tasks:
+    # ========================================
+    # System Setup
+    # ========================================
+    - name: Update apt cache
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install required packages
+      ansible.builtin.apt:
+        name:
+          - cifs-utils
+          - restic
+          - curl
+        state: present
+
+    # ========================================
+    # NAS Mount
+    # ========================================
+    - name: Create NAS credentials file
+      ansible.builtin.copy:
+        dest: "{{ nas_credentials_file }}"
+        content: |
+          username={{ nas_erik_username }}
+          password={{ nas_erik_password }}
+        mode: '0600'
+      no_log: true
+
+    - name: Create NAS mount point
+      ansible.builtin.file:
+        path: "{{ nas_mount_point }}"
+        state: directory
+        mode: '0755'
+
+    - name: Add NAS mount to fstab and mount
+      ansible.posix.mount:
+        path: "{{ nas_mount_point }}"
+        src: "//{{ nas_ip }}/{{ nas_share }}"
+        fstype: cifs
+        opts: "credentials={{ nas_credentials_file }},uid=0,gid=0,file_mode=0600,dir_mode=0700,_netdev,nofail,vers=3.0"
+        state: mounted
+
+    # ========================================
+    # Restic Setup
+    # ========================================
+    - name: Create restic password file
+      ansible.builtin.copy:
+        dest: "{{ restic_password_file }}"
+        content: "{{ restic_password }}"
+        mode: '0600'
+      no_log: true
+
+    - name: Create cleanup script
+      ansible.builtin.copy:
+        dest: /usr/local/bin/restic-cleanup
+        mode: '0755'
+        content: |
+          #!/bin/bash
+          # Restic cleanup - prune old snapshots
+          set -e
+
+          REPO="{{ restic_repository }}"
+          PASSWORD_FILE="{{ restic_password_file }}"
+
+          # Check repository is accessible
+          if [[ ! -d "$REPO" ]]; then
+              echo "Error: Repository not found at $REPO"
+              exit 1
+          fi
+
+          echo "=== Restic cleanup started: $(date) ==="
+
+          restic -r "$REPO" \
+              --password-file "$PASSWORD_FILE" \
+              forget \
+              --keep-hourly {{ restic_keep_hourly }} \
+              --keep-daily {{ restic_keep_daily }} \
+              --keep-weekly {{ restic_keep_weekly }} \
+              --keep-monthly {{ restic_keep_monthly }} \
+              --prune
+
+          echo "=== Restic cleanup completed: $(date) ==="
+
+    - name: Create restic-cleanup systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/restic-cleanup.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Restic backup cleanup and prune
+          After=network-online.target remote-fs.target
+          Wants=network-online.target
+
+          [Service]
+          Type=oneshot
+          ExecStart=/usr/local/bin/restic-cleanup
+          StandardOutput=journal
+          StandardError=journal
+
+    - name: Create restic-cleanup systemd timer
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/restic-cleanup.timer
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Daily restic cleanup at 3am
+
+          [Timer]
+          OnCalendar=*-*-* 03:00:00
+          Persistent=true
+          RandomizedDelaySec=300
+
+          [Install]
+          WantedBy=timers.target
+
+    - name: Enable and start restic-cleanup timer
+      ansible.builtin.systemd:
+        name: restic-cleanup.timer
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # ========================================
+    # Backrest Installation
+    # ========================================
+    - name: Check if backrest is installed
+      ansible.builtin.stat:
+        path: /usr/local/bin/backrest
+      register: backrest_binary
+
+    - name: Download backrest
+      ansible.builtin.get_url:
+        url: "https://github.com/garethgeorge/backrest/releases/download/v{{ backrest_version }}/backrest_Linux_x86_64.tar.gz"
+        dest: /tmp/backrest.tar.gz
+        mode: '0644'
+      when: not backrest_binary.stat.exists
+
+    - name: Extract backrest
+      ansible.builtin.unarchive:
+        src: /tmp/backrest.tar.gz
+        dest: /usr/local/bin
+        remote_src: true
+        extra_opts:
+          - backrest
+      when: not backrest_binary.stat.exists
+
+    - name: Set backrest permissions
+      ansible.builtin.file:
+        path: /usr/local/bin/backrest
+        mode: '0755'
+
+    - name: Create backrest data directory
+      ansible.builtin.file:
+        path: "{{ backrest_data_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Create backrest config directory
+      ansible.builtin.file:
+        path: "{{ backrest_config_dir }}"
+        state: directory
+        mode: '0700'
+
+    - name: Deploy backrest config
+      ansible.builtin.copy:
+        dest: "{{ backrest_config_dir }}/config.json"
+        mode: '0600'
+        content: |
+          {
+            "modno": 1,
+            "version": 4,
+            "instance": "{{ backrest_instance_id }}",
+            "repos": [
+              {
+                "id": "nas-snapshots",
+                "uri": "{{ restic_repository }}",
+                "guid": "ab96dd296a7f5cfd25c3ffd6adad45761366d7572bef2ede4935bd9833de4f08",
+                "password": "{{ restic_password }}",
+                "checkPolicy": {
+                  "schedule": {
+                    "cron": "0 5 1 * *"
+                  },
+                  "readDataSubsetPercent": 10
+                },
+                "autoUnlock": true
+              }
+            ]
+          }
+      notify: restart backrest
+
+    - name: Create backrest systemd service
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/backrest.service
+        mode: '0644'
+        content: |
+          [Unit]
+          Description=Backrest restic web UI
+          After=network-online.target remote-fs.target
+          Wants=network-online.target
+
+          [Service]
+          Type=simple
+          ExecStart=/usr/local/bin/backrest
+          Environment=HOME=/root
+          Environment=BACKREST_PORT=9898
+          Environment=BACKREST_BINDADDR=0.0.0.0
+          Environment=BACKREST_DATA={{ backrest_data_dir }}
+          Environment=XDG_CACHE_HOME={{ backrest_data_dir }}/cache
+          Restart=on-failure
+          RestartSec=5
+
+          [Install]
+          WantedBy=multi-user.target
+
+    - name: Enable and start backrest service
+      ansible.builtin.systemd:
+        name: backrest.service
+        enabled: true
+        state: started
+        daemon_reload: true
+
+    # ========================================
+    # Status Output
+    # ========================================
+    - name: Show service status
+      ansible.builtin.debug:
+        msg:
+          - "Restic cleanup timer: enabled (daily at 3am)"
+          - "Backrest web UI: http://restic.lan:9898"
+          - "NAS mount: {{ nas_mount_point }}"
+
+  handlers:
+    - name: restart backrest
+      ansible.builtin.systemd:
+        name: backrest.service
+        state: restarted
+        daemon_reload: true

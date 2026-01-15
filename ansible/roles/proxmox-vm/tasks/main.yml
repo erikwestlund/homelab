@@ -1,0 +1,134 @@
+---
+# Proxmox VM deployment from cloud image
+
+- name: Check if cloud image exists
+  ansible.builtin.command:
+    cmd: "ssh {{ proxmox_user }}@{{ proxmox_host }} 'test -f {{ cloud_image_path }}/{{ cloud_image_name }}'"
+  register: image_check
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Download cloud image
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'wget -q -O {{ cloud_image_path }}/{{ cloud_image_name }} {{ cloud_image_url }}'
+  when: image_check.rc != 0
+  delegate_to: localhost
+
+- name: Check if VM exists
+  ansible.builtin.command:
+    cmd: "ssh {{ proxmox_user }}@{{ proxmox_host }} 'qm status {{ vm_id }}'"
+  register: vm_exists
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+
+- name: Stop existing VM
+  ansible.builtin.command:
+    cmd: "ssh {{ proxmox_user }}@{{ proxmox_host }} 'qm stop {{ vm_id }} --skiplock'"
+  when:
+    - vm_exists.rc == 0
+    - vm_destroy_existing
+  delegate_to: localhost
+  ignore_errors: true
+
+- name: Wait for VM to stop
+  ansible.builtin.pause:
+    seconds: 3
+  when:
+    - vm_exists.rc == 0
+    - vm_destroy_existing
+
+- name: Destroy existing VM
+  ansible.builtin.command:
+    cmd: "ssh {{ proxmox_user }}@{{ proxmox_host }} 'qm destroy {{ vm_id }} --purge'"
+  when:
+    - vm_exists.rc == 0
+    - vm_destroy_existing
+  delegate_to: localhost
+
+- name: Create VM
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm create {{ vm_id }}
+      --name {{ vm_name }}
+      --memory {{ vm_memory }}
+      --cores {{ vm_cores }}
+      --net0 virtio,bridge={{ vm_bridge }}{% if vm_mac_address %},macaddr={{ vm_mac_address }}{% endif %}'
+  delegate_to: localhost
+
+- name: Import cloud image disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm importdisk {{ vm_id }} {{ cloud_image_path }}/{{ cloud_image_name }} {{ proxmox_storage }}'
+  delegate_to: localhost
+
+- name: Configure VM hardware
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm set {{ vm_id }}
+      --scsihw virtio-scsi-pci
+      --scsi0 {{ proxmox_storage }}:vm-{{ vm_id }}-disk-0
+      --ide2 {{ proxmox_storage }}:cloudinit
+      --boot c
+      --bootdisk scsi0
+      --serial0 socket
+      --vga serial0'
+  delegate_to: localhost
+
+- name: Configure cloud-init user
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm set {{ vm_id }} --ciuser {{ cloudinit_user }}'
+  delegate_to: localhost
+
+- name: Configure cloud-init SSH keys
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm set {{ vm_id }} --sshkeys {{ cloudinit_ssh_key_file }}'
+  delegate_to: localhost
+
+- name: Configure cloud-init IP (DHCP)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm set {{ vm_id }} --ipconfig0 ip=dhcp'
+  when: cloudinit_ip == "dhcp"
+  delegate_to: localhost
+
+- name: Configure cloud-init IP (static)
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm set {{ vm_id }} --ipconfig0 ip={{ cloudinit_ip }},gw={{ cloudinit_gateway | default("192.168.1.1") }}'
+  when: cloudinit_ip != "dhcp"
+  delegate_to: localhost
+
+- name: Resize VM disk
+  ansible.builtin.command:
+    cmd: >
+      ssh {{ proxmox_user }}@{{ proxmox_host }}
+      'qm resize {{ vm_id }} scsi0 {{ vm_disk_size }}'
+  delegate_to: localhost
+
+- name: Start VM
+  ansible.builtin.command:
+    cmd: "ssh {{ proxmox_user }}@{{ proxmox_host }} 'qm start {{ vm_id }}'"
+  when: vm_start_after_create
+  delegate_to: localhost
+
+- name: Wait for VM to boot
+  ansible.builtin.pause:
+    seconds: 30
+  when: vm_start_after_create
+
+- name: Display VM info
+  ansible.builtin.debug:
+    msg: "VM {{ vm_name }} (ID: {{ vm_id }}) created and started"

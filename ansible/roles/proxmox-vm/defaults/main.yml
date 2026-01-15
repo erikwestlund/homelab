@@ -1,0 +1,32 @@
+---
+# Proxmox VM defaults
+
+# Proxmox host connection
+proxmox_host: hatchery.lan
+proxmox_user: root
+
+# VM configuration
+vm_id: 100
+vm_name: "vm-{{ vm_id }}"
+vm_memory: 1024
+vm_cores: 1
+vm_disk_size: "8G"
+vm_bridge: vmbr0
+vm_mac_address: ""  # Leave empty for auto-generated
+
+# Cloud image configuration
+cloud_image_url: "https://cloud-images.ubuntu.com/noble/current/noble-server-cloudimg-amd64.img"
+cloud_image_name: "ubuntu-24.04-cloudimg-amd64.img"
+cloud_image_path: "/var/lib/vz/template/iso"
+
+# Cloud-init configuration
+cloudinit_user: erik
+cloudinit_ssh_key_file: "/root/.ssh/authorized_keys"
+cloudinit_ip: "dhcp"  # or "192.168.1.x/24" for static
+
+# Storage
+proxmox_storage: "local-lvm"
+
+# Behavior
+vm_destroy_existing: true
+vm_start_after_create: true
